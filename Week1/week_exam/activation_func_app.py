@@ -52,7 +52,7 @@ if st.button("Tính toán"):
         st.subheader("Kết quả")
         result = {
             "Thông số": [f"Hàm {activation}(x)", f"Đạo hàm {activation}'(x)"],
-            "Giá trị": [f"{value:.6f}", f"{derivative:.6f}"]
+            "Giá trị": [f"{value:.2f}", f"{derivative:.2f}"]
         }
         st.table(result)
 

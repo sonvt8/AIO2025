@@ -52,7 +52,7 @@ def main():
 
             # Hiển thị kết quả
             print("\nKết quả:")
-            print(f"Hàm {activation}({x}) = {value:.4f}")
+            print(f"Hàm {activation}({x}) = {value:.2f}")
 
             # Hỏi người dùng có muốn tiếp tục không
             choice = input("\nBạn có muốn tiếp tục tính toán? (y/n): ").strip().lower()
