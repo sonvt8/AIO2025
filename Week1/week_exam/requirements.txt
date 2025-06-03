@@ -1,2 +1,2 @@
 #pip install -r requirements.txt
-streamlit
+streamlit==1.45.1
