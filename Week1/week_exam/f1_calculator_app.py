@@ -1,7 +1,7 @@
 import streamlit as st
 
 # Hàm tính Precision, Recall, F1-score
-def calculate_f1_components(tp, fp, fn):
+def evaluate_f1_components(tp, fp, fn):
     # Kiểm tra kiểu dữ liệu: phải là int
     if not (isinstance(tp, int) and isinstance(fp, int) and isinstance(fn, int)):
         raise ValueError("Các giá trị TP, FP, FN phải là số nguyên (integer). Vui lòng kiểm tra lại!")
@@ -50,7 +50,7 @@ with col3:
 if st.button("Tính toán"):
     try:
         # Tính toán
-        precision, recall, f1_score = calculate_f1_components(tp, fp, fn)
+        precision, recall, f1_score = evaluate_f1_components(tp, fp, fn)
 
         # Hiển thị thông báo thành công
         st.success("Tính toán thành công! Kết quả được hiển thị bên dưới.")
@@ -59,7 +59,7 @@ if st.button("Tính toán"):
         st.subheader("Kết quả")
         result = {
             "Chỉ số": ["Precision", "Recall", "F1-score"],
-            "Giá trị": [f"{precision:.4f}", f"{recall:.4f}", f"{f1_score:.4f}"]
+            "Giá trị": [f"{precision:.2f}", f"{recall:.2f}", f"{f1_score:.2f}"]
         }
         st.table(result)
 
