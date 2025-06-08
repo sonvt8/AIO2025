@@ -1,0 +1,90 @@
+% Font và ngôn ngữ
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+\setotherlanguage{english}
+
+% Font chính - Times New Roman
+\setmainfont{Times New Roman}
+
+% Font mono - sử dụng DejaVu Sans Mono vì hỗ trợ tiếng Việt tốt hơn
+\setmonofont{DejaVu Sans Mono}[Scale=0.9]
+
+% Packages cần thiết
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{parskip}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+% Cấu hình trang
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+% Định nghĩa màu sắc
+\definecolor{codebg}{rgb}{0.97,0.97,0.97}
+\definecolor{codeblue}{rgb}{0,0,0.8}
+\definecolor{codgreen}{rgb}{0,0.6,0}
+\definecolor{codred}{rgb}{0.8,0,0}
+\definecolor{codgray}{rgb}{0.5,0.5,0.5}
+
+% Cấu hình listings với bảng literate đầy đủ cho tiếng Việt
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    language=Python,
+    captionpos=b,
+    columns=fixed,  % Quan trọng: sử dụng fixed
+    keepspaces=true,
+    numbers=left,
+    numberstyle=\tiny\color{codgray},
+    commentstyle=\color{codgreen},
+    keywordstyle=\color{codeblue}\bfseries,
+    stringstyle=\color{codred},
+    % Bảng ánh xạ đầy đủ cho tiếng Việt
+    literate=%
+    {á}{{\'a}}1 {à}{{\`a}}1 {ả}{{\h{a}}}1 {ã}{{\~a}}1 {ạ}{{\d{a}}}1
+    {ă}{{\u{a}}}1 {ắ}{{\u{\'a}}}1 {ằ}{{\u{\`a}}}1 {ẳ}{{\u{\h{a}}}}1 {ẵ}{{\u{\~a}}}1 {ặ}{{\u{\d{a}}}}1
+    {â}{{\^a}}1 {ấ}{{\^{\'a}}}1 {ầ}{{\^{\`a}}}1 {ẩ}{{\^{\h{a}}}}1 {ẫ}{{\^{\~a}}}1 {ậ}{{\^{\d{a}}}}1
+    {đ}{{\dj}}1 {Đ}{{\DJ}}1
+    {é}{{\'e}}1 {è}{{\`e}}1 {ẻ}{{\h{e}}}1 {ẽ}{{\~e}}1 {ẹ}{{\d{e}}}1
+    {ê}{{\^e}}1 {ế}{{\^{\'e}}}1 {ề}{{\^{\`e}}}1 {ể}{{\^{\h{e}}}}1 {ễ}{{\^{\~e}}}1 {ệ}{{\^{\d{e}}}}1
+    {í}{{\'i}}1 {ì}{{\`i}}1 {ỉ}{{\h{i}}}1 {ĩ}{{\~i}}1 {ị}{{\d{i}}}1
+    {ó}{{\'o}}1 {ò}{{\`o}}1 {ỏ}{{\h{o}}}1 {õ}{{\~o}}1 {ọ}{{\d{o}}}1
+    {ô}{{\^o}}1 {ố}{{\^{\'o}}}1 {ồ}{{\^{\`o}}}1 {ổ}{{\^{\h{o}}}}1 {ỗ}{{\^{\~o}}}1 {ộ}{{\^{\d{o}}}}1
+    {ơ}{{ơ}}1 {ớ}{{ớ}}1 {ờ}{{ờ}}1 {ở}{{ở}}1 {ỡ}{{ỡ}}1 {ợ}{{ợ}}1
+    {ú}{{\'u}}1 {ù}{{\`u}}1 {ủ}{{\h{u}}}1 {ũ}{{\~u}}1 {ụ}{{\d{u}}}1
+    {ư}{{ư}}1 {ứ}{{ứ}}1 {ừ}{{ừ}}1 {ử}{{ử}}1 {ữ}{{ữ}}1 {ự}{{ự}}1
+    {ý}{{\'y}}1 {ỳ}{{\`y}}1 {ỷ}{{\h{y}}}1 {ỹ}{{\~y}}1 {ỵ}{{\d{y}}}1
+    % Ký tự viết hoa
+    {Á}{{\'A}}1 {À}{{\`A}}1 {Ả}{{\h{A}}}1 {Ã}{{\~A}}1 {Ạ}{{\d{A}}}1
+    {Ă}{{\u{A}}}1 {Ắ}{{\u{\'A}}}1 {Ằ}{{\u{\`A}}}1 {Ẳ}{{\u{\h{A}}}}1 {Ẵ}{{\u{\~A}}}1 {Ặ}{{\u{\d{A}}}}1
+    {Â}{{\^A}}1 {Ấ}{{\^{\'A}}}1 {Ầ}{{\^{\`A}}}1 {Ẩ}{{\^{\h{A}}}}1 {Ẫ}{{\^{\~A}}}1 {Ậ}{{\^{\d{A}}}}1
+    {É}{{\'E}}1 {È}{{\`E}}1 {Ẻ}{{\h{E}}}1 {Ẽ}{{\~E}}1 {Ẹ}{{\d{E}}}1
+    {Ê}{{\^E}}1 {Ế}{{\^{\'E}}}1 {Ề}{{\^{\`E}}}1 {Ể}{{\^{\h{E}}}}1 {Ễ}{{\^{\~E}}}1 {Ệ}{{\^{\d{E}}}}1
+    {Í}{{\'I}}1 {Ì}{{\`I}}1 {Ỉ}{{\h{I}}}1 {Ĩ}{{\~I}}1 {Ị}{{\d{I}}}1
+    {Ó}{{\'O}}1 {Ò}{{\`O}}1 {Ỏ}{{\h{O}}}1 {Õ}{{\~O}}1 {Ọ}{{\d{O}}}1
+    {Ô}{{\^O}}1 {Ố}{{\^{\'O}}}1 {Ồ}{{\^{\`O}}}1 {Ổ}{{\^{\h{O}}}}1 {Ỗ}{{\^{\~O}}}1 {Ộ}{{\^{\d{O}}}}1
+    {Ơ}{{Ơ}}1 {Ớ}{{Ớ}}1 {Ờ}{{Ờ}}1 {Ở}{{Ở}}1 {Ỡ}{{Ỡ}}1 {Ợ}{{Ợ}}1
+    {Ú}{{\'U}}1 {Ù}{{\`U}}1 {Ủ}{{\h{U}}}1 {Ũ}{{\~U}}1 {Ụ}{{\d{U}}}1
+    {Ư}{{Ư}}1 {Ứ}{{Ứ}}1 {Ừ}{{Ừ}}1 {Ử}{{Ử}}1 {Ữ}{{Ữ}}1 {Ự}{{Ự}}1
+    {Ý}{{\'Y}}1 {Ỳ}{{\`Y}}1 {Ỷ}{{\h{Y}}}1 {Ỹ}{{\~Y}}1 {Ỵ}{{\d{Y}}}1
+}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Tóm tắt Phương pháp Lập trình},
+    pdfauthor={Vũ Thái Sơn},
+}
