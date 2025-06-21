@@ -1,0 +1,335 @@
+\begin{abstract}
+Bài blog này tổng hợp các kỹ thuật \textbf{SQL nâng cao}: \textit{JOIN, CTE, Subquery, Temp Table, Stored Procedure, Trigger} và đặc biệt là \textbf{Recursive SQL}.  
+Mỗi phần đều có \textit{dataset mẫu}, truy vấn \& bảng kết quả.  
+Nếu các bạn muốn muốn đào sâu có thể xem thêm các tài liệu \cite{postgresql_docs,mysql_manual,beaulieu2020}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%----------------------------------------------------------
+\section{Giới Thiệu}
+Bạn đã chán ví dụ “Hello World”? Chào mừng tới \textbf{Công Viên Giải Trí SQL}!  
+Bài viết dựa trên tài liệu thực hành của \cite{beaulieu2020,celko2015} và tài liệu chính thức \cite{postgresql_docs,mysql_manual}.
+
+\begin{itemize}
+  \item JOIN — Kết hợp bảng
+  \item CTE — Dễ đọc, tái dùng
+  \item Subquery — Điều kiện linh hoạt
+  \item Temp Table — Tăng tốc truy vấn nặng
+  \item Stored Procedure — Đóng gói nghiệp vụ
+  \item Trigger — Kết hợp truy vấn dữ liệu
+  \item Recursive SQL — Xử lý cây/phân cấp
+\end{itemize}
+
+%----------------------------------------------------------
+\section{SQL JOIN – Kết hợp dữ liệu}
+
+Khái niệm JOIN, cú pháp và tối ưu hoá được trình bày chi tiết trong PostgreSQL Manual \cite{postgresql_docs}.
+
+\subsection{Dataset mẫu}
+
+\begin{lstlisting}[caption={Tạo bảng customers và orders để thực hành JOIN}]
+CREATE TABLE customers (
+  customer_id INT PRIMARY KEY,
+  first_name  VARCHAR(30),
+  last_name   VARCHAR(30)
+);
+
+CREATE TABLE orders (
+  order_id    INT PRIMARY KEY,
+  order_date  DATE,
+  customer_id INT,
+  status      INT
+);
+
+INSERT INTO customers VALUES
+(1,'Ha','Anh'),
+(2,'Quang','Linh'),
+(3,'Mai','Phuong');
+
+INSERT INTO orders VALUES
+(101,'2023-01-10',1,1),
+(102,'2023-01-12',1,2),
+(103,'2023-01-14',2,1);
+\end{lstlisting}
+
+\subsection{INNER JOIN}
+
+\begin{lstlisting}[caption={INNER JOIN giữa orders và customers}]
+SELECT o.order_id, c.first_name, c.last_name
+FROM   orders o
+INNER JOIN customers c ON o.customer_id = c.customer_id;
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả INNER JOIN}
+\begin{tabular}{|c|l|l|}
+\hline
+order\_id & first\_name & last\_name \\ \hline
+101 & Ha    & Anh   \\ \hline
+102 & Ha    & Anh   \\ \hline
+103 & Quang & Linh  \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{LEFT JOIN}
+
+\begin{lstlisting}[caption={LEFT JOIN lấy tất cả khách hàng (kể cả chưa có đơn)}]
+SELECT c.customer_id,
+       c.first_name,
+       COALESCE(o.order_id,'-') AS order_id
+FROM   customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+ORDER BY c.customer_id;
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả LEFT JOIN}
+\begin{tabular}{|c|l|l|}
+\hline
+customer\_id & first\_name & order\_id \\ \hline
+1 & Ha    & 101 \\ \hline
+1 & Ha    & 102 \\ \hline
+2 & Quang & 103 \\ \hline
+3 & Mai   & \textendash \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{SELF JOIN}
+
+\begin{lstlisting}[caption={SELF JOIN lấy tên nhân viên và quản lý}]
+SELECT e.employee_id,
+       e.first_name,
+       m.first_name AS manager_first_name
+FROM   employees e
+JOIN   employees m ON e.reports_to = m.employee_id;
+\end{lstlisting}
+
+%----------------------------------------------------------
+\section{CTE – Common Table Expression}
+
+CTE (từ khóa \texttt{WITH}) ra mắt trong SQL:1999 và được mô tả rõ trong PostgreSQL Manual \cite{postgresql_docs}.
+
+\subsection{Dataset mẫu}
+
+\begin{lstlisting}[caption={Tạo bảng invoices và clients}]
+CREATE TABLE clients (
+  client_id INT PRIMARY KEY,
+  name      VARCHAR(40)
+);
+CREATE TABLE invoices (
+  invoice_id    INT PRIMARY KEY,
+  client_id     INT,
+  invoice_total DECIMAL(10,2)
+);
+
+INSERT INTO clients  VALUES (1,'CompanyA'),(2,'CompanyB');
+INSERT INTO invoices VALUES
+(1,1,120.50),(2,1,80.00),
+(3,2,300.75);
+\end{lstlisting}
+
+\subsection{Truy vấn}
+
+\begin{lstlisting}[caption={CTE tìm khách có tổng hóa đơn cao nhất}]
+WITH invoice_amount AS (
+  SELECT client_id,
+         SUM(invoice_total) AS invoice_amount
+  FROM   invoices
+  GROUP  BY client_id
+)
+SELECT c.client_id, c.name, ia.invoice_amount
+FROM   clients c
+JOIN   invoice_amount ia USING (client_id)
+ORDER  BY ia.invoice_amount DESC
+LIMIT  1;
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Client doanh số cao nhất}
+\begin{tabular}{|c|l|r|}
+\hline
+client\_id & name      & invoice\_amount \\ \hline
+2 & CompanyB & 300.75 \\ \hline
+\end{tabular}
+\end{table}
+
+%----------------------------------------------------------
+\section{Subquery – Truy vấn lồng nhau}
+
+Các mẫu Subquery nâng cao được phân tích sâu trong \cite{celko2015}.
+
+\begin{lstlisting}[caption={Subquery tìm nhân viên lương cao hơn quản lý}]
+SELECT e1.*
+FROM   employees e1
+WHERE  e1.salary > (
+  SELECT e2.salary
+  FROM   employees e2
+  WHERE  e1.reports_to = e2.employee_id
+);
+\end{lstlisting}
+
+%----------------------------------------------------------
+\section{Temp Table – Bảng tạm thời}
+
+MySQL và PostgreSQL đều hỗ trợ bảng tạm; cú pháp xem \cite{mysql_manual,postgresql_docs}.
+
+\begin{lstlisting}[caption={Tạo và sử dụng bảng tạm}]
+CREATE TEMPORARY TABLE temp_invoice (
+  client_id   INT,
+  invoice_sum DECIMAL(10,2),
+  invoice_avg DECIMAL(10,2)
+);
+
+INSERT INTO temp_invoice
+SELECT client_id,
+       SUM(invoice_total),
+       AVG(invoice_total)
+FROM   invoices
+GROUP  BY client_id;
+
+SELECT * FROM temp_invoice;
+\end{lstlisting}
+
+%----------------------------------------------------------
+\section{Stored Procedure – Thủ tục lưu trữ}
+
+Thủ tục lưu trữ (Stored Procedure) được mô tả chi tiết trong MySQL 8.0 Manual \cite{mysql_manual}.
+
+\begin{lstlisting}[caption={Thủ tục cập nhật thanh toán và hóa đơn}]
+DELIMITER //
+CREATE PROCEDURE update_payment_invoice(
+  IN new_payment_id     INT,
+  IN new_client_id      INT,
+  IN new_invoice_id     INT,
+  IN new_date           DATE,
+  IN new_amount         DECIMAL(10,2),
+  IN new_payment_method INT
+)
+BEGIN
+  INSERT INTO payments (payment_id, client_id, invoice_id,
+                        date, amount, payment_method)
+  VALUES (new_payment_id, new_client_id, new_invoice_id,
+          new_date, new_amount, new_payment_method);
+
+  UPDATE invoices
+  SET    payment_total = COALESCE(payment_total,0) + new_amount
+  WHERE  invoice_id = new_invoice_id;
+END //
+DELIMITER ;
+
+CALL update_payment_invoice(101,1,1,'2023-12-01',100.00,1);
+\end{lstlisting}
+
+%----------------------------------------------------------
+\section{Trigger – Kích hoạt tự động}
+
+Khái niệm Trigger \& ví dụ cụ thể: MySQL 8.0 Manual \cite{mysql_manual}.
+
+\begin{lstlisting}[caption={Trigger ghi nhận nhân viên mới}]
+CREATE TABLE hiring (
+  emp_id    BIGINT,
+  hire_date TIMESTAMP
+);
+
+CREATE TRIGGER hire_log
+AFTER INSERT ON employees
+FOR EACH ROW
+INSERT INTO hiring VALUES (NEW.employee_id, CURRENT_TIMESTAMP);
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Kiểm thử trigger}]
+INSERT INTO employees (employee_id, first_name, last_name)
+VALUES (99,'Tim','Sehn');
+
+SELECT * FROM hiring WHERE emp_id = 99;
+-- Expect: 1 row inserted into hiring
+\end{lstlisting}
+
+%----------------------------------------------------------
+\section{Recursive SQL – Truy vấn đệ quy}
+
+Recursive CTE (mệnh đề \texttt{WITH RECURSIVE}) giải thích ở \cite{postgresql_docs}.
+
+\subsection{Dataset mẫu}
+
+\begin{lstlisting}[caption={Tạo bảng family mẫu}]
+CREATE TABLE family (
+  id        INT PRIMARY KEY,
+  name      VARCHAR(50),
+  parent_id INT
+);
+
+INSERT INTO family VALUES
+(1,'Mr Nam',NULL),
+(2,'Mr Sau',1),
+(3,'Ms Bay',1),
+(4,'Mr Tam',2),
+(5,'Ms Chin',2),
+(6,'Ms Muoi',3);
+\end{lstlisting}
+
+\subsection{Truy vấn đệ quy}
+
+\begin{lstlisting}[caption={Recursive CTE cho cây gia phả}]
+WITH RECURSIVE FamilyTree AS (
+  -- Root node
+  SELECT id, name, parent_id, 1 AS level
+  FROM   family
+  WHERE  parent_id IS NULL
+
+  UNION ALL
+
+  -- Recursive part
+  SELECT f.id, f.name, f.parent_id, ft.level + 1
+  FROM   family f
+  JOIN   FamilyTree ft ON f.parent_id = ft.id
+)
+SELECT * FROM FamilyTree
+ORDER BY level, id;
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Kết quả cây 3 thế hệ}
+\begin{tabular}{|c|l|c|c|l|}
+\hline
+id & name & parent\_id & level & Quan hệ \\ \hline
+1 & Mr Nam  & NULL & 1 & Ancestor \\ \hline
+2 & Mr Sau  & 1    & 2 & Child \\ \hline
+3 & Ms Bay  & 1    & 2 & Child \\ \hline
+4 & Mr Tam  & 2    & 3 & Grand-child \\ \hline
+5 & Ms Chin & 2    & 3 & Grand-child \\ \hline
+6 & Ms Muoi & 3    & 3 & Grand-child \\ \hline
+\end{tabular}
+\end{table}
+
+%----------------------------------------------------------
+\section{Kết Luận}
+
+\begin{itemize}
+  \item \textbf{JOIN}: kết hợp bảng hiệu quả.  
+  \item \textbf{CTE}: code sạch \& tái sử dụng.  
+  \item \textbf{Subquery}: xử lý điều kiện phức tạp.  
+  \item \textbf{Temp Table}: lưu kết quả trung gian tăng tốc.  
+  \item \textbf{Stored Procedure}: đóng gói nghiệp vụ.  
+  \item \textbf{Trigger}: tự động bảo vệ dữ liệu.  
+  \item \textbf{Recursive SQL}: thao tác dữ liệu phân cấp.  
+\end{itemize}
+
+Để đào sâu hơn:
+
+\begin{itemize}
+  \item \cite{beaulieu2020} – Khởi đầu thân thiện với mọi hệ CSDL.  
+  \item \cite{celko2015} – Thủ thuật “nghịch” SQL nâng cao.  
+  \item \cite{benGan2015} – Góc nhìn tối ưu T-SQL.  
+\end{itemize}
+
+\nocite{*} % liệt kê mọi mục chưa trích dẫn trực tiếp
+
+%----------------------------------------------------------
+% EOF blog.tex
