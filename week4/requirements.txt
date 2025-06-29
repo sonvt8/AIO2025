@@ -11,3 +11,7 @@ streamlit==1.36.0
 pypdf
 matplotlib
 openpyxl
+langchain-openai==0.3.27
+langchain_ollama==0.3.3
+fasttext==0.9.3; sys_platform == 'darwin' and platform_machine == 'arm64'
+fasttext-wheel==0.9.2; sys_platform != 'darwin' or platform_machine != 'arm64' --extra-index-url https://download.pytorch.org/whl/cpu
