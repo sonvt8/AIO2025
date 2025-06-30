@@ -1,0 +1,17 @@
+# Core dependencies
+streamlit==1.36.0
+python-dotenv==1.0.0
+chromadb>=0.5.
+pypdf==4.2.0     # Phiên bản tương thích với PyPDFLoader
+
+# LangChain and related packages
+langchain>=0.3,<0.4
+langchain-chroma>=0.1.4,<0.2
+langchain-experimental>=0.3,<0.4
+langchain-community>=0.3,<0.4
+langchain-huggingface>=0.1,<0.2
+langchain-openai==0.3.27
+langchain_ollama==0.3.3
+
+# Additional dependencies for document loaders
+unstructured>=0.13.0  # Hỗ trợ UnstructuredMarkdownLoader
