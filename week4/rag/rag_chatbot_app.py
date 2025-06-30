@@ -101,10 +101,23 @@ class ChromaDBManager:
             # Tạo hoặc lấy bộ sưu tập
             self.collection = self.client.get_or_create_collection(name="rag_docs")
             doc_count = self.collection.count()
-            logger.info(f"Khởi tạo bộ sưu tập ChromaDB 'rag_docs' với {doc_count} tài liệu")
+            if doc_count > 0:
+                logger.info(f"Khởi tạo ChromaDB với {doc_count} tài liệu đã tồn tại")
+                display_message(
+                    f"Đã thiết lập ChromaDB với {doc_count} tài liệu đã tồn tại",
+                    message_type="info"
+                )
+            else:
+                logger.info("Khởi tạo ChromaDB mới (rỗng)")
+                display_message(
+                    "Khởi tạo ChromaDB mới (rỗng)",
+                    message_type="info"
+                )
         except Exception as e:
             logger.error(f"Lỗi khởi tạo ChromaDB: {str(e)}")
+            display_message(f"Lỗi khởi tạo ChromaDB: {str(e)}", message_type="error")
             raise
+
 
     def create_vector_store(self, documents: List[Document] = None) -> Chroma:
         """Tạo vector store từ tài liệu hoặc tải từ bộ nhớ.
@@ -189,6 +202,7 @@ class DocumentProcessor:
             st.error(f"Lỗi khi tải tài liệu: {str(e)}")
             return []
 
+
     def split_documents(self, documents: List[Document]) -> List[Document]:
         """Chia nhỏ tài liệu thành các đoạn.
 
@@ -225,6 +239,7 @@ class QueryExpansionRAG:
         self.retriever = vector_store.as_retriever(
             search_kwargs={"k": 3}, search_type="similarity"
         )
+
 
     def retrieve_with_expansion(self, question: str) -> List[Document]:
         """Tìm kiếm tài liệu liên quan đến câu hỏi.
@@ -306,6 +321,7 @@ class AnswerGenerator:
         formatted_context = "\n".join(citation_chunks)
         return formatted_context, citation_map
 
+
     def generate_answer(self, question: str, documents: List[Document]) -> Dict[str, Any]:
         """Tạo câu trả lời từ kết quả tìm kiếm với trích dẫn.
 
@@ -385,6 +401,19 @@ def main() -> None:
 
     # Điều khiển sidebar
     st.sidebar.title("Điều khiển")
+    
+    # Hiển thị danh sách tài liệu đã tải
+    st.sidebar.subheader("Tài liệu đã tải")
+    if os.path.exists(files_directory):
+        existing_files = [f for f in os.listdir(files_directory) if f.endswith(('.pdf', '.txt', '.md', '.csv'))]
+        if existing_files:
+            for file_name in existing_files:
+                st.sidebar.markdown(f"- {file_name}")
+        else:
+            st.sidebar.info("Chưa có tài liệu nào trong thư mục.")
+    else:
+        st.sidebar.warning("Thư mục documents chưa tồn tại.")
+        
     uploaded_files = st.sidebar.file_uploader(
         "Tải lên tệp", type=["pdf", "txt", "md", "csv"], accept_multiple_files=True
     )
@@ -409,7 +438,7 @@ def main() -> None:
                 embedding_function=st.session_state.embedding_function,
             )
             st.session_state.doc_count = st.session_state.chroma_manager.collection.count()
-            display_message("Khởi tạo ChromaDB thành công!", message_type="info")
+            # display_message("Khởi tạo ChromaDB thành công!", message_type="info")
         except Exception as e:
             logger.error(f"Lỗi khởi tạo ChromaDB: {str(e)}")
             display_message(f"Lỗi khởi tạo ChromaDB: {str(e)}", message_type="error")
