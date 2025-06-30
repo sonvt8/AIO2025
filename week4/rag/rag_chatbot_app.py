@@ -2,6 +2,7 @@
 import hashlib
 import logging
 import os
+import json
 from typing import Any, Dict, List, Tuple
 
 import chromadb
@@ -28,6 +29,7 @@ load_dotenv(override=True)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATA_DIR = os.getenv("DATA_DIR", "data")
 CHROMA_DB_PATH = os.path.join(DATA_DIR, "chroma_db")
+USERS = json.loads(os.getenv("USERS", "{}"))
 
 # Thiết lập ghi log
 logging.basicConfig(
@@ -72,7 +74,27 @@ def display_message(message: str, message_type: str = "error") -> None:
         """
         st.session_state.message_placeholder.markdown(html_message, unsafe_allow_html=True)
 
+def authenticate_user(username: str, password: str) -> bool:
+    """Kiểm tra thông tin đăng nhập của người dùng.
 
+    Args:
+        username: Tên người dùng.
+        password: Mật khẩu.
+
+    Returns:
+        bool: True nếu xác thực thành công, False nếu thất bại.
+    """
+    if not USERS:
+        logger.error("Không tìm thấy thông tin người dùng trong .env")
+        display_message("Lỗi hệ thống: Không tìm thấy thông tin người dùng", message_type="error")
+        return False
+    if username in USERS and USERS[username] == password:
+        logger.info(f"Xác thực thành công cho người dùng: {username}")
+        display_message(f"Chào {username}", message_type="info")
+        return True
+    logger.warning(f"Xác thực thất bại cho người dùng: {username}")
+    return False
+  
 class EmbeddingModel:
     """Mô hình Embedding để tạo vector từ văn bản."""
 
@@ -356,17 +378,14 @@ class AnswerGenerator:
 def main() -> None:
     """Hàm chính để chạy ứng dụng Streamlit."""
     st.set_page_config(
-        page_title="Trợ lý RAG",
-        layout="wide",
-        initial_sidebar_state="expanded",
+      page_title="Trợ lý RAG",
+      layout="wide",
+      initial_sidebar_state="expanded",
     )
-    st.title("Trợ lý RAG")
-
-    # Khởi tạo đường dẫn với đường dẫn tuyệt đối
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    files_directory = os.path.join(current_dir, "documents")
 
     # Khởi tạo trạng thái phiên
+    if "is_authenticated" not in st.session_state:
+        st.session_state.is_authenticated = False
     if "rag_system" not in st.session_state:
         st.session_state.rag_system = None
     if "chroma_manager" not in st.session_state:
@@ -377,12 +396,43 @@ def main() -> None:
         st.session_state.embedding_function = None
     if "is_processing_documents" not in st.session_state:
         st.session_state.is_processing_documents = False
+    if "is_processing" not in st.session_state:
+        st.session_state.is_processing = False
+
+    # Trang đăng nhập
+    if not st.session_state.is_authenticated:
+        st.title("Đăng nhập vào Trợ lý RAG")
+        st.markdown("Vui lòng nhập thông tin đăng nhập để truy cập hệ thống.")
+
+        username = st.text_input("Tên người dùng", placeholder="Nhập tên người dùng")
+        password = st.text_input("Mật khẩu", type="password", placeholder="Nhập mật khẩu")
+
+        if st.button("Đăng nhập"):
+            if authenticate_user(username, password):
+                st.session_state.is_authenticated = True
+                st.rerun()  # Tải lại trang để chuyển sang giao diện chính
+            else:
+                st.error("Đăng nhập thất bại. Vui lòng thử lại.")
+
+        return  # Thoát hàm nếu chưa đăng nhập
+
+    # Giao diện chính sau khi đăng nhập
+    st.title("Trợ lý RAG")
+
+    # Khởi tạo đường dẫn với đường dẫn tuyệt đối
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_dir, "documents")
 
     # Tạo thư mục nếu chưa tồn tại
     os.makedirs(files_directory, exist_ok=True)
 
     # Hiển thị thông tin hệ thống
     st.sidebar.title("Thông tin Hệ thống")
+    if st.session_state.chroma_manager is not None:
+        doc_count = st.session_state.chroma_manager.collection.count()
+        st.sidebar.markdown(f"**Số tài liệu trong ChromaDB**: {doc_count}")
+    else:
+        st.sidebar.markdown("**Số tài liệu trong ChromaDB**: Chưa khởi tạo")
 
     # Chọn mô hình
     llm_type = st.sidebar.radio(
@@ -401,8 +451,6 @@ def main() -> None:
 
     # Điều khiển sidebar
     st.sidebar.title("Điều khiển")
-    
-    # Hiển thị danh sách tài liệu đã tải
     st.sidebar.subheader("Tài liệu đã tải")
     if os.path.exists(files_directory):
         existing_files = [f for f in os.listdir(files_directory) if f.endswith(('.pdf', '.txt', '.md', '.csv'))]
@@ -413,11 +461,10 @@ def main() -> None:
             st.sidebar.info("Chưa có tài liệu nào trong thư mục.")
     else:
         st.sidebar.warning("Thư mục documents chưa tồn tại.")
-        
+
     uploaded_files = st.sidebar.file_uploader(
         "Tải lên tệp", type=["pdf", "txt", "md", "csv"], accept_multiple_files=True
     )
-
     if uploaded_files:
         st.sidebar.success(f"Đã tải lên {len(uploaded_files)} tệp")
         for uploaded_file in uploaded_files:
@@ -438,7 +485,6 @@ def main() -> None:
                 embedding_function=st.session_state.embedding_function,
             )
             st.session_state.doc_count = st.session_state.chroma_manager.collection.count()
-            # display_message("Khởi tạo ChromaDB thành công!", message_type="info")
         except Exception as e:
             logger.error(f"Lỗi khởi tạo ChromaDB: {str(e)}")
             display_message(f"Lỗi khởi tạo ChromaDB: {str(e)}", message_type="error")
@@ -480,10 +526,6 @@ def main() -> None:
     st.header("Giao diện Truy vấn")
     query = st.text_input("Nhập câu hỏi của bạn:")
     k = st.slider("Số kết quả trả về", min_value=1, max_value=5, value=3)
-
-    # Trạng thái xử lý
-    if "is_processing" not in st.session_state:
-        st.session_state.is_processing = False
 
     # Nút tìm kiếm
     if st.button("Tìm kiếm"):
