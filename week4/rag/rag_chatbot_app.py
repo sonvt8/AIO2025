@@ -2,8 +2,6 @@
 import hashlib
 import logging
 import os
-import re
-import shutil
 from typing import Any, Dict, List, Tuple
 
 import chromadb
@@ -13,7 +11,6 @@ from langchain.prompts import PromptTemplate
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import (
     CSVLoader,
-    DirectoryLoader,
     PyPDFLoader,
     TextLoader,
     UnstructuredMarkdownLoader,
@@ -360,6 +357,10 @@ def main() -> None:
         st.session_state.chroma_manager = None
     if "doc_count" not in st.session_state:
         st.session_state.doc_count = 0
+    if "embedding_function" not in st.session_state:
+        st.session_state.embedding_function = None
+    if "is_processing_documents" not in st.session_state:
+        st.session_state.is_processing_documents = False
 
     # Tạo thư mục nếu chưa tồn tại
     os.makedirs(files_directory, exist_ok=True)
@@ -394,13 +395,18 @@ def main() -> None:
             with open(os.path.join(files_directory, uploaded_file.name), "wb") as f:
                 f.write(uploaded_file.getvalue())
 
-    # Khởi tạo EmbeddingModel và ChromaDBManager
-    embeddings = EmbeddingModel(embedding_type)
+    # Khởi tạo EmbeddingModel
+    if st.session_state.embedding_function is None:
+        embeddings = EmbeddingModel(embedding_type)
+        st.session_state.embedding_function = embeddings.embedding_function
+        logger.info(f"Khởi tạo embedding function: {embedding_type}")
+
+    # Khởi tạo ChromaDBManager
     if st.session_state.chroma_manager is None:
         try:
             st.session_state.chroma_manager = ChromaDBManager(
                 persist_directory=CHROMA_DB_PATH,
-                embedding_function=embeddings.embedding_function,
+                embedding_function=st.session_state.embedding_function,
             )
             st.session_state.doc_count = st.session_state.chroma_manager.collection.count()
             display_message("Khởi tạo ChromaDB thành công!", message_type="info")
@@ -411,15 +417,22 @@ def main() -> None:
 
     # Xử lý tài liệu khi nhấn nút
     if st.sidebar.button("Xử lý Tài liệu"):
+        if st.session_state.is_processing_documents:
+            display_message("Đang xử lý tài liệu, vui lòng đợi!", message_type="warning")
+            return
+        if st.session_state.embedding_function is None:
+            display_message("Chưa khởi tạo mô hình embedding!", message_type="error")
+            return
+        st.session_state.is_processing_documents = True
         with st.spinner("Đang xử lý tài liệu..."):
             try:
-                doc_processor = DocumentProcessor(embeddings.embedding_function)
+                doc_processor = DocumentProcessor(st.session_state.embedding_function)
                 documents = doc_processor.load_files(files_directory)
                 if documents:
                     splits = doc_processor.split_documents(documents)
                     st.session_state.rag_system = QueryExpansionRAG(
                         documents=splits,
-                        embeddings=embeddings.embedding_function,
+                        embeddings=st.session_state.embedding_function,
                         chroma_manager=st.session_state.chroma_manager,
                     )
                     st.session_state.doc_count = (
@@ -431,11 +444,17 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"Lỗi xử lý tài liệu: {str(e)}")
                 display_message(f"Lỗi xử lý tài liệu: {str(e)}", message_type="error")
+            finally:
+                st.session_state.is_processing_documents = False
 
     # Giao diện truy vấn chính
     st.header("Giao diện Truy vấn")
     query = st.text_input("Nhập câu hỏi của bạn:")
-    k = st.slider("Số kết quả trả về", min_value=1, max_value=10, value=3)
+    k = st.slider("Số kết quả trả về", min_value=1, max_value=5, value=3)
+
+    # Trạng thái xử lý
+    if "is_processing" not in st.session_state:
+        st.session_state.is_processing = False
 
     # Nút tìm kiếm
     if st.button("Tìm kiếm"):
@@ -443,29 +462,43 @@ def main() -> None:
             if st.session_state.rag_system is None:
                 display_message("Vui lòng xử lý tài liệu trước!", message_type="warning")
                 return
-            with st.spinner("Đang xử lý truy vấn..."):
-                try:
+            if st.session_state.is_processing:
+                display_message("Đang xử lý truy vấn, vui lòng đợi!", message_type="warning")
+                return
+            st.session_state.is_processing = True
+            try:
+                with st.spinner("Đang xử lý truy vấn..."):
                     st.session_state.rag_system.retriever.search_kwargs["k"] = k
                     answer_generator = AnswerGenerator(llm_type)
+                    logger.info(f"Xử lý truy vấn: {query}")
                     docs = st.session_state.rag_system.retrieve_with_expansion(query)
+                    if not docs:
+                        display_message("Không tìm thấy tài liệu liên quan!", message_type="warning")
+                        st.session_state.is_processing = False
+                        return
+                    logger.info(f"Tìm thấy {len(docs)} tài liệu liên quan")
+                    
                     st.subheader("📝 Phân tích Chi tiết")
                     with st.spinner("Đang tạo câu trả lời chi tiết..."):
                         response_data = answer_generator.generate_answer(query, docs)
+                        if not response_data["answer"]:
+                            display_message("Không thể tạo câu trả lời!", message_type="error")
+                            st.session_state.is_processing = False
+                            return
                         st.markdown(response_data["answer"])
                         st.subheader("📚 Nguồn Trích dẫn")
                         for citation_id, citation_data in response_data["citations"].items():
                             with st.expander(f"{citation_id} - Nhấn để xem nguồn"):
                                 st.markdown("**Đoạn trích:**")
                                 st.markdown(f"```\n{citation_data['content']}\n```")
-                                if st.button(f"Xem Nội dung Đầy đủ cho {citation_id}"):
-                                    st.markdown("**Nội dung Đầy đủ:**")
-                                    st.markdown(f"```\n{citation_data['full_content']}\n```")
+                    
                     with st.expander("🔎 Xem Tất cả Kết quả Tìm kiếm"):
                         for i, doc in enumerate(docs, 1):
                             st.markdown(f"**Truy vấn:** {query}")
                             st.markdown(f"*Tài liệu {i}:*")
                             st.markdown(f"```\n{doc.page_content[:500]}...\n```")
                             st.markdown("---")
+                    
                     st.subheader("🎯 Câu trả lời Cuối cùng")
                     with st.spinner("Đang tổng hợp câu trả lời cuối cùng..."):
                         final_prompt = PromptTemplate(
@@ -503,9 +536,11 @@ def main() -> None:
                             """,
                             unsafe_allow_html=True,
                         )
-                except Exception as e:
-                    logger.error(f"Lỗi khi xử lý: {e}")
-                    display_message(f"Lỗi hệ thống: {str(e)}", message_type="error")
+            except Exception as e:
+                logger.error(f"Lỗi khi xử lý truy vấn: {str(e)}")
+                display_message(f"Lỗi hệ thống: {str(e)}", message_type="error")
+            finally:
+                st.session_state.is_processing = False
         else:
             display_message("Vui lòng nhập câu hỏi", message_type="warning")
 
