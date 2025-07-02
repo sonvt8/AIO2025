@@ -3,6 +3,35 @@
 
 Chào mừng bạn đến với **Trợ lý RAG**, một ứng dụng thông minh sử dụng công nghệ Retrieval-Augmented Generation (RAG) để cung cấp câu trả lời chi tiết dựa trên các tài liệu đã tải lên. Ứng dụng này hỗ trợ cả mô hình ngôn ngữ OpenAI (ChatGPT) và mô hình cục bộ như Llama3.2 thông qua Ollama.
 
+## Hướng dẫn tải thư mục `week4/rag` từ GitHub repository
+
+Nếu bạn chỉ muốn tải thư mục `week4/rag` từ GitHub repository mà không cần tải toàn bộ nội dung repo, bạn có thể sử dụng `git sparse-checkout`. Dưới đây là các bước hướng dẫn:
+
+1. Tạo thư mục cho dự án:
+   ```bash
+   mkdir my-rag-project
+   cd my-rag-project
+   ```
+
+2. Khởi tạo git repository và kết nối với remote repository của bạn:
+   ```bash
+   git init
+   git remote add origin https://github.com/sonvt8/AIO2025.git
+   ```
+
+3. Cấu hình `git sparse-checkout` để chỉ tải thư mục `week4/rag`:
+   ```bash
+   git sparse-checkout init --cone
+   git sparse-checkout set week4/rag
+   ```
+
+4. Pull dữ liệu từ repository:
+   ```bash
+   git pull origin sonvt8
+   ```
+
+Sau khi thực hiện các bước trên, thư mục `week4/rag` sẽ được tải về mà không cần tải toàn bộ repo.
+
 ## Yêu cầu hệ thống
 
 - **Hệ điều hành**: MacOS hoặc Windows.
