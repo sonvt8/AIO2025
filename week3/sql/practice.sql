@@ -89,6 +89,64 @@ END;
 CALL create_temp_invoice();
 SELECT * FROM temp_invoice;
 
+/* Trigger */
+create TABLE expenditure as (
+  SELECT c.client_id, c.name, SUM(i.invoice_total) as invoice_total
+  FROM client c
+  JOIN invoice i on c.client_id = i.client_id
+  GROUP by i.client_id
+);
+
+-- Trigger cho INSERT và UPDATE trên bảng invoice
+CREATE TRIGGER update_expenditure_after_invoice_change
+AFTER INSERT ON invoice
+FOR EACH ROW
+BEGIN
+    -- Kiểm tra xem khách hàng đã tồn tại trong expenditure chưa
+    DECLARE client_exists INT;
+    SELECT COUNT(*) INTO client_exists FROM expenditure WHERE client_id = NEW.client_id;
+    
+    IF client_exists > 0 THEN
+        -- Cập nhật tổng invoice_total nếu khách hàng đã tồn tại
+        UPDATE expenditure e
+        SET e.invoice_total = (
+            SELECT SUM(invoice_total)
+            FROM invoice
+            WHERE client_id = NEW.client_id
+        )
+        WHERE e.client_id = NEW.client_id;
+    ELSE
+        -- Thêm mới khách hàng nếu chưa tồn tại
+        INSERT INTO expenditure (client_id, name, invoice_total)
+        SELECT 
+            c.client_id, 
+            c.name,
+            SUM(i.invoice_total)
+        FROM client c
+        JOIN invoice i ON c.client_id = i.client_id
+        WHERE c.client_id = NEW.client_id
+        GROUP BY c.client_id;
+    END IF;
+END;
+
+CREATE TRIGGER update_expenditure_after_client_change
+AFTER INSERT ON client
+FOR EACH ROW
+BEGIN
+    -- Thêm khách hàng mới với tổng chi tiêu = 0
+    INSERT INTO expenditure (client_id, name, invoice_total)
+    VALUES (NEW.client_id, NEW.name, 0);
+END;
+
+INSERT INTO client (client_id, name, address, city, state, phone)
+VALUES (7, 'NewClient', '123 Main St', 'Chicago', 'IL', '312-555-1234');
+
+INSERT INTO invoice (invoice_id, number, client_id, invoice_total, payment_total, invoice_date, due_date, payment_date)
+VALUES (13, '99-999-9999', 7, 500.00, 0.00, '2025-06-19', '2025-07-09', NULL);
+
+SELECT * FROM expenditure WHERE client_id = 7;
+
+
 =======
 -- Tạo bảng office
 CREATE TABLE office (

@@ -1,0 +1,119 @@
+\section{Giới thiệu về NumPy nâng cao và AI}
+NumPy là thư viện cốt lõi trong Python, không chỉ giúp xử lý mảng hiệu quả mà còn là nền tảng cho các ứng dụng trí tuệ nhân tạo (AI). Nếu bạn từng sắp xếp danh sách mua sắm hoặc tính tổng hóa đơn, bạn đã sử dụng những ý tưởng tương tự như các phép toán trên mảng mà NumPy cung cấp, nhưng nhanh hơn và mạnh mẽ hơn! Trong bài viết này, chúng ta sẽ khám phá các kỹ thuật NumPy nâng cao như \textit{broadcasting}, \textit{indexing}, và \textit{vectorization}, sau đó áp dụng chúng vào một bài toán AI đơn giản: \textbf{phân loại điểm thi học sinh}. Mục tiêu là giúp bạn, dù mới học Python hay đã quen với AI, hiểu rõ cách NumPy biến những ý tưởng đơn giản thành công cụ mạnh mẽ, nên mình sẽ diễn đạt các kỹ thuật này ở mức đơn giản nhất.
+
+\section{Kỹ thuật NumPy nâng cao}
+
+\subsection{Broadcasting: Phép thuật với mảng}
+Hãy tưởng tượng bạn cần tăng giá tất cả món hàng trong siêu thị lên 10\%. Thay vì cộng từng món, NumPy cho phép bạn thực hiện phép toán trên toàn bộ mảng cùng lúc nhờ \textit{broadcasting}. Đây là kỹ thuật tự động mở rộng kích thước mảng để thực hiện phép toán mà không cần sao chép dữ liệu \cite{numpy_broadcasting}.
+
+\begin{lstlisting}[caption={Ví dụ về broadcasting}]
+import numpy as np
+prices = np.array([100, 200, 300])  # Prices of items
+new_prices = prices * 1.1           # Increase by 10%
+print(new_prices)                   # Output: [110. 220. 330.]
+\end{lstlisting}
+
+\textbf{Công thức}: Nếu hai mảng có kích thước khác nhau, NumPy sẽ mở rộng mảng nhỏ hơn để khớp với mảng lớn hơn theo quy tắc:
+\[
+\text{Kích thước khớp nếu: } (m, n) \text{ và } (1, n) \text{ hoặc } (m, 1)
+\]
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{broadcasting.png}
+\caption{Minh họa broadcasting: Số 1.1 được nhân với từng phần tử của mảng.}
+\label{fig:broadcasting}
+\end{figure}
+
+\subsection{Indexing thông minh: Lấy dữ liệu như cao thủ}
+Nếu bạn cần tìm tất cả học sinh có điểm trên 8 trong danh sách, NumPy cung cấp \textit{indexing} để lọc dữ liệu nhanh chóng \cite{numpy_indexing}. Có hai loại chính:
+\begin{itemize}
+  \item \textbf{Boolean indexing}: Lọc dựa trên điều kiện.
+  \item \textbf{Fancy indexing}: Sử dụng mảng chỉ số để truy cập.
+\end{itemize}
+
+\begin{lstlisting}[caption={Boolean indexing lọc điểm cao}]
+scores = np.array([7, 8.5, 9, 6.5, 8])
+high_scores = scores[scores > 8]  # Boolean indexing with condition > 8
+print(high_scores)                # Output: [8.5, 9.0]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Fancy indexing truy cập chỉ số}]
+indices = np.array([0, 2, 4])     # Select specific indices
+selected_scores = scores[indices]  # Fancy indexing with index array
+print(selected_scores)             # Output: [7.  9.  8.]
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{0.8\textwidth}{|c|X|}
+\hline
+\textbf{Phương pháp} & \textbf{Mô tả} \\
+\hline
+Boolean indexing & Lọc dữ liệu theo điều kiện logic (>, <, ==). \\
+Fancy indexing & Truy cập phần tử bằng danh sách chỉ số. \\
+\hline
+\end{tabularx}
+\caption{So sánh các phương pháp indexing.}
+\label{tab:indexing}
+\end{table}
+
+\subsection{Vectorization: Tăng tốc mà không cần vòng lặp}
+Thay vì dùng vòng lặp để tính tổng bình phương điểm số, NumPy cho phép bạn \textit{vector hóa} phép toán, đặc biệt hiệu quả với dữ liệu lớn \cite{solomon_noloops}. Kỹ thuật này tăng tốc độ nhờ xử lý song song trên toàn bộ mảng cùng lúc, tận dụng tối đa sức mạnh của CPU/GPU, thay vì lặp qua từng phần tử như cách truyền thống. Với dữ liệu lớn, vectorization giảm đáng kể thời gian xử lý so với vòng lặp, nhờ loại bỏ chi phí gọi hàm và quản lý bộ nhớ tuần tự.
+
+\begin{lstlisting}[caption={Vectorization so với vòng lặp}]
+# Loop method
+scores = np.array([7, 8, 9])
+sum_squares = 0
+for s in scores:
+    sum_squares += s**2
+print(sum_squares)  # Output: 194
+
+# Vectorized method
+sum_squares = np.sum(scores**2)
+print(sum_squares)  # Output: 194
+\end{lstlisting}
+
+\textbf{Lợi ích}: Vectorization đặc biệt tối ưu với dữ liệu lớn nhờ xử lý song song, giúp giảm thời gian tính toán và tăng hiệu suất so với vòng lặp.
+
+\section{Ứng dụng AI: Phân loại điểm thi}
+Hãy áp dụng NumPy vào một bài toán AI đơn giản: phân loại học sinh dựa trên điểm thi. Giả sử bạn có điểm Toán, Lý, Hóa của 5 học sinh và cần dự đoán xem họ có đậu (1) hay trượt (0) dựa trên ngưỡng điểm trung bình.
+
+\subsection{Dữ liệu và bài toán}
+Dữ liệu gồm mảng 2D (5 học sinh, 3 môn) và nhãn (đậu/trượt). Chúng ta sẽ sử dụng \textit{broadcasting} để thêm điểm thưởng, \textit{indexing} để lọc dữ liệu, và \textit{vectorization} để tính toán hiệu quả.
+
+\begin{lstlisting}[caption={Mã nguồn hoàn chỉnh phân loại điểm thi}]
+import numpy as np
+
+# Data: Scores of 5 students in 3 subjects (Math, Physics, Chemistry)
+data = np.array([[8, 7, 6], [9, 8, 9], [6, 5, 7], [7, 8, 7], [9, 9, 8]])
+
+# Step 1: Apply broadcasting to add bonus points
+bonus = np.array([0.5, 0.5, 0.5])  # Bonus points for each subject
+data_with_bonus = data + bonus     # Broadcasting adds bonus to each element
+print("Data with bonus:", data_with_bonus)  # Output: [[8.5 7.5 6.5] [9.5 8.5 9.5] [6.5 5.5 7.5] [7.5 8.5 7.5] [9.5 9.5 8.5]]
+
+# Step 2: Use indexing to calculate mean and filter high performers
+mean_scores = np.mean(data_with_bonus, axis=1)  # Average for each student
+high_performers = mean_scores[mean_scores > 7]  # Boolean indexing for high scores
+print("High performers' average scores:", high_performers)  # Output: [7.83333333 9.16666667 7.83333333 9.16666667]
+
+# Step 3: Use vectorization for classification and accuracy
+labels = np.array([1, 1, 0, 1, 1])  # 1: Pass, 0: Fail
+predictions = mean_scores > 7       # Vectorized threshold comparison
+accuracy = np.mean(predictions == labels)  # Vectorized accuracy calculation
+print(f"Độ chính xác: {accuracy*100:.2f}%")  # Output: 80.00%
+\end{lstlisting}
+
+\section{Kiến thức mở rộng}
+NumPy không chỉ dừng ở các kỹ thuật trên. Dưới đây là một số hướng phát triển:
+\begin{itemize}
+  \item \textbf{Tích hợp với AI}: NumPy là nền tảng cho các thư viện như TensorFlow, PyTorch. Dữ liệu trong AI thường là mảng nhiều chiều, và NumPy xử lý chúng hiệu quả \cite{nguyen2025_numpy_arrays}.
+  \item \textbf{Tối ưu hóa}: Sử dụng \texttt{np.einsum} để tính toán tensor phức tạp hoặc \texttt{np.linalg} cho đại số tuyến tính.
+  \item \textbf{Xử lý dữ liệu lớn}: Kết hợp NumPy với Dask hoặc CuPy để xử lý dữ liệu trên GPU.
+\end{itemize}
+
+\textbf{Ví dụ thực tế}: Trong xử lý ảnh AI, mỗi ảnh là một mảng 3D (chiều cao, chiều rộng, kênh màu). NumPy giúp tiền xử lý như chuẩn hóa giá trị pixel trước khi đưa vào mô hình học sâu.
+
+\section{Kết luận}
+NumPy là công cụ mạnh mẽ, giúp bạn từ những phép toán đơn giản như tính hóa đơn đến các bài toán AI phức tạp như phân loại. Với \textit{broadcasting}, \textit{indexing}, và \textit{vectorization}, bạn có thể viết code nhanh, gọn, và hiệu quả. Bài toán phân loại điểm thi chỉ là bước đầu – hãy thử áp dụng NumPy vào dữ liệu thực tế như dự đoán thời tiết hoặc nhận diện ảnh! Tham khảo thêm tài liệu \cite{tiem2025, vinh2025} để củng cố kiến thức.
