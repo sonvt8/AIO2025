@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 
 def standardized_images(output_dir: str,
@@ -33,12 +34,15 @@ def main():
     bg2_img = imgs["NewBackground"]
 
     diff = cv2.absdiff(bg1_img, obj_img)
+
     # thresh = 0 if < 15 else 255
     _, thresh = cv2.threshold(diff, 0.05, 255, cv2.THRESH_BINARY)
 
     output = np.where(thresh == 0, bg2_img, obj_img)
     cv2.imwrite('output.png', output)
 
-
+    plt.imshow(cv2.cvtColor(diff, cv2.COLOR_BGR2RGB))
+    plt.axis("off")
+    plt.show()
 if __name__ == "__main__":
     main()

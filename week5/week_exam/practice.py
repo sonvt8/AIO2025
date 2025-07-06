@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from tools import ClassicTool, QuickTool
 
 classicTool = ClassicTool()
@@ -86,3 +87,37 @@ a = np.array([2, 6, 1, 9, 10, 3, 27])
 index = np.where((a >= 5) & (a <= 10))[0]
 print(a[index])
 print(a[(a >= 5) & (a <= 10)])
+
+# câu 16
+print("*"*25, "\nKết quả câu 16 là:")
+df = pd.read_csv("./documents/advertising.csv")
+data = df.to_numpy()
+sales = data[:, -1]
+max_value = np.max(sales)
+max_index = np.where(sales == max_value)[0]
+print(f"Max: {max_value} - Index: {max_index}")
+
+# câu 17
+print("*"*25, "\nKết quả câu 17 là:")
+tv = data[:, 0]
+mean_tv = np.mean(tv)
+print(mean_tv)
+
+# câu 18
+print("*"*25, "\nKết quả câu 18 là:")
+count = sales[sales >= 20]
+print(count.size)
+
+# câu 19
+print("*"*25, "\nKết quả câu 19 là:")
+radio = data[:, 1]
+index = np.where(sales >= 15)
+mean_radio = np.mean(radio[index])
+print(mean_radio)
+
+# câu 20
+print("*"*25, "\nKết quả câu 20 là:")
+newspaper = data[:, 2]
+mean_newspaper = np.mean(newspaper)
+index = np.where(newspaper > mean_newspaper)
+print(np.sum(sales[index]))
