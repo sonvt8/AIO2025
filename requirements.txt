@@ -1,3 +1,6 @@
 #python -m pip install --upgrade pip && pip install -r requirements.txt
 gdown == 5.2.0
 torch == 2.7.1
+numpy == 2.2.6
+matplotlib == 3.10.3
+opencv-python == 4.11.0.86
