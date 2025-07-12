@@ -1,0 +1,244 @@
+\section{Giới thiệu: Xác suất và ứng dụng trong Machine Learning}
+
+Xác suất không chỉ là một khái niệm toán học khô khan mà còn là nền tảng cho nhiều quyết định trong đời sống và các thuật toán hiện đại như Naive Bayes trong Machine Learning. Bài viết này sẽ giúp bạn:
+
+\begin{itemize}
+    \item Hiểu các định lý xác suất cơ bản qua ví dụ thực tế.
+    \item Kết nối lý thuyết xác suất với ứng dụng AI, đặc biệt là Naive Bayes.
+    \item Làm quen với công thức, mã nguồn Python và hình minh họa.
+\end{itemize}
+
+\section{Xác suất cơ bản và sự kiện độc lập}
+
+\subsection{Khái niệm xác suất}
+
+Xác suất của một sự kiện $A$ là tỉ lệ số trường hợp thuận lợi cho $A$ trên tổng số trường hợp có thể xảy ra~\cite{bishop2006pattern}:
+\[
+P(A) = \frac{\text{Số trường hợp thuận lợi}}{\text{Tổng số trường hợp}}
+\]
+Ví dụ: Tung một đồng xu, xác suất ra mặt ngửa là $1/2$. Rút một lá bài từ bộ bài Tây, xác suất rút được lá Át Cơ là $1/52$.
+
+\subsection{Sự kiện độc lập và phụ thuộc}
+
+Hai sự kiện $A$ và $B$ là độc lập nếu việc xảy ra $A$ không ảnh hưởng đến xác suất xảy ra $B$~\cite{bishop2006pattern}:
+\[
+P(A \cap B) = P(A) \cdot P(B)
+\]
+\textit{Ví dụ:} Tung 2 đồng xu, xác suất cả hai cùng ra ngửa là $1/2 \times 1/2 = 1/4$.
+
+\textbf{Giải thích:}
+\begin{quote}
+Không gian mẫu gồm 4 trường hợp: HH, HT, TH, TT.\\
+Sự kiện $A$: đồng xu thứ nhất ra ngửa (HH, HT) $\rightarrow P(A) = 1/2$\\
+Sự kiện $B$: đồng xu thứ hai ra ngửa (HH, TH) $\rightarrow P(B) = 1/2$\\
+$P(A \cap B)$ là xác suất cả hai đồng xu cùng ra ngửa, chỉ có trường hợp HH, nên $P(A \cap B) = 1/4$.
+\end{quote}
+
+\section{Định lý xác suất toàn phần và Bayes}
+
+\subsection{Định lý xác suất toàn phần}
+
+Nếu một sự kiện có thể xảy ra qua nhiều kịch bản khác nhau, tổng xác suất là~\cite{bishop2006pattern}:
+\[
+P(A) = \sum_{i} P(B_i) \cdot P(A|B_i)
+\]
+\textit{Ví dụ:} Xác suất chọn được học sinh đeo kính khi chọn ngẫu nhiên một học sinh nam hoặc nữ.
+
+\subsection{Định lý Bayes}
+
+Định lý Bayes cho phép "đảo ngược" xác suất có điều kiện~\cite{bishop2006pattern,murphy2022probabilistic}:
+\[
+P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}
+\]
+
+\textbf{Ý nghĩa:} Giúp cập nhật xác suất của một giả thuyết $A$ khi có thêm bằng chứng $B$.
+
+\textbf{Ví dụ:}
+\begin{itemize}
+    \item Xác suất email là spam: $P(\text{Spam}) = 0.3$
+    \item Xác suất email chứa từ "free" nếu là spam: $P(\text{"free"}|\text{Spam}) = 0.4$
+    \item Xác suất email chứa từ "free" nếu không phải spam: $P(\text{"free"}|\text{Not Spam}) = 0.05$
+\end{itemize}
+\[
+P(\text{"free"}) = 0.4 \times 0.3 + 0.05 \times 0.7 = 0.155
+\]
+\[
+P(\text{Spam}|\text{"free"}) = \frac{0.4 \times 0.3}{0.155} \approx 0.774
+\]
+Nếu bạn nhận được email có từ "free", xác suất nó là spam là khoảng 77.4\%~\cite{aivietnam2025}.
+
+\subsection{Minh họa thực tế}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{blogs/week6/bayes_diagram.png}
+\caption{Minh họa trực quan về định lý Bayes: Từ quan sát (B) suy ra nguyên nhân (A)~\cite{bishop2006pattern}.}
+\end{figure}
+
+\section{Bernoulli Naive Bayes: Phân loại rời rạc}
+
+\subsection{Ví dụ với dữ liệu rời rạc}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Studied} & \textbf{Result} \\
+\hline
+Yes & Pass \\
+No & Pass \\
+Yes & Fail \\
+No & Fail \\
+Yes & Pass \\
+No & Fail \\
+\hline
+\end{tabular}
+\caption{Dữ liệu minh họa Bernoulli Naive Bayes~\cite{aivietnam2025}}
+\end{table}
+
+Tính $P(\text{Result} = \text{Pass} | \text{Studied} = \text{Yes})$:
+\[
+P(\text{Pass}) = 3/6 = 0.5
+\]
+\[
+P(\text{Studied} = \text{Yes} | \text{Pass}) = 2/3
+\]
+\[
+P(\text{Studied} = \text{Yes}) = 3/6 = 0.5
+\]
+\[
+P(\text{Pass}|\text{Studied} = \text{Yes}) = \frac{2/3 \times 0.5}{0.5} = 2/3
+\]
+
+\section{Naive Bayes với nhiều đặc trưng}
+
+\subsection{Ví dụ với 3 đặc trưng}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Confident} & \textbf{Studied} & \textbf{Sick} & \textbf{Result} \\
+\hline
+Yes & Yes & No & Pass \\
+No & Yes & Yes & Fail \\
+Yes & No & No & Pass \\
+Yes & Yes & No & Pass \\
+No & No & Yes & Fail \\
+No & Yes & No & Fail \\
+\hline
+\end{tabular}
+\caption{Bảng dữ liệu minh họa cho Naive Bayes~\cite{aivietnam2025}}
+\end{table}
+
+Tính xác suất một học sinh sẽ "Pass" nếu biết: Confident = Yes, Studied = Yes, Sick = No.
+
+\[
+P(\text{Pass}) = 3/6 = 0.5
+\]
+\[
+P(\text{Confident} = \text{Yes} | \text{Pass}) = 3/3 = 1
+\]
+\[
+P(\text{Studied} = \text{Yes} | \text{Pass}) = 2/3
+\]
+\[
+P(\text{Sick} = \text{No} | \text{Pass}) = 3/3 = 1
+\]
+\[
+P(\text{All}|\text{Pass}) = 1 \times \frac{2}{3} \times 1 \times 0.5 = \frac{1}{3}
+\]
+
+\begin{lstlisting}[caption={Probability calculation using Python}]
+# The dataset:
+# Confident | Studied | Sick | Result
+# Yes | Yes | No | Pass
+# No | Yes | Yes | Fail
+# Yes | No | No | Pass
+# Yes | Yes | No | Pass
+# No | No | Yes | Fail
+# No | Yes | No | Fail
+
+p_pass = 3/6
+p_conf_yes_pass = 3/3
+p_studied_yes_pass = 2/3
+p_sick_no_pass = 3/3
+
+p_all_yes_pass = p_conf_yes_pass * p_studied_yes_pass * p_sick_no_pass * p_pass
+print(p_all_yes_pass) # Output: 0.333...
+\end{lstlisting}
+
+\section{Gaussian Naive Bayes: Xác suất cho dữ liệu liên tục}
+
+\subsection{Công thức phân phối chuẩn}
+
+Khi dữ liệu là số thực (ví dụ: chiều dài, chiều rộng cánh hoa), xác suất được tính qua phân phối chuẩn (Gaussian)~\cite{bishop2006pattern}:
+\[
+f(x) = \frac{1}{\sigma \sqrt{2\pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}
+\]
+
+\subsection{Ví dụ thực tế}
+
+Giả sử chiều dài cánh hoa của hai loài hoa có phân phối chuẩn với các tham số khác nhau, bạn có thể dùng Gaussian Naive Bayes để tính xác suất một bông hoa thuộc về loài nào dựa trên chiều dài đo được~\cite{bishop2006pattern}.
+
+\section{Ứng dụng Naive Bayes trong Machine Learning}
+
+\subsection{Phân loại email spam với Python}
+
+\begin{lstlisting}[caption={Email classification with scikit-learn}]
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import CountVectorizer
+
+emails = ["Free money now", "Hi friend", "Win a prize", "Meeting tomorrow"]
+labels = [1, 0, 1, 0] # 1: spam, 0: not spam
+
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(emails)
+
+clf = MultinomialNB()
+clf.fit(X, labels)
+
+# Predict for a new email
+new_mail = ["Free prize for you"]
+X_new = vectorizer.transform(new_mail)
+print(clf.predict(X_new)) # Output: [1]
+\end{lstlisting}
+
+\textit{Tham khảo:} \cite{scikit-learn}
+
+\subsection{So sánh Naive Bayes và Logistic Regression}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{0.8\textwidth}{|c|X|X|}
+\hline
+ & \textbf{Naive Bayes} & \textbf{Logistic Regression} \\
+\hline
+Ưu điểm & Đơn giản, nhanh, hiệu quả với dữ liệu lớn & Mô hình hóa tốt mối quan hệ phi tuyến \\
+Nhược điểm & Giả định độc lập, không phù hợp khi feature liên quan mạnh & Cần nhiều dữ liệu để ổn định \\
+Ứng dụng & Phân loại văn bản, lọc spam & Dự đoán xác suất, phân loại nhị phân \\
+\hline
+\end{tabularx}
+\caption{So sánh Naive Bayes và Logistic Regression~\cite{rish2001empirical,wickramasinghe2021naive}}
+\end{table}
+
+\section{Kiến thức mở rộng và kết luận}
+
+\subsection{Ứng dụng xác suất trong Deep Learning}
+
+Dù Deep Learning thường dùng các hàm mất mát phức tạp, xác suất vẫn là nền tảng cho các hàm như Cross-Entropy, Softmax. Việc hiểu xác suất giúp bạn hiểu sâu hơn về cách máy học "ra quyết định"~\cite{murphy2022probabilistic}.
+
+\subsection{Đọc thêm}
+
+\begin{itemize}
+    \item \textit{Pattern Recognition and Machine Learning} - C. Bishop~\cite{bishop2006pattern}
+    \item \textit{Probabilistic Machine Learning} - K. Murphy~\cite{murphy2022probabilistic}
+    \item Naïve Bayes Classifiers, Quang-Vinh Dinh, 2025~\cite{aivietnam2025}
+    \item Scikit-learn: Machine Learning in Python~\cite{scikit-learn}
+\end{itemize}
+
+\textbf{Kết luận:}
+
+Việc hiểu đúng và áp dụng các định lý xác suất không chỉ giúp bạn giải quyết các bài toán đời thường mà còn mở ra cánh cửa đến thế giới Machine Learning hiện đại.
+
+\textbf{Hãy thử áp dụng Naive Bayes vào dữ liệu của bạn và khám phá điều kỳ diệu của xác suất!}
