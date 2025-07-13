@@ -1,5 +1,5 @@
 import numpy as np
-
+import pandas as pd
 
 class NaiveBayesClassifier:
     """Lớp phân loại Naive Bayes để dự đoán dựa trên xác suất.
@@ -23,28 +23,25 @@ class NaiveBayesClassifier:
         self._conditional_probs = None
         self._feature_names = None
 
-    def create_training_data(self) -> np.ndarray:
-        """Tạo dữ liệu huấn luyện dưới dạng mảng NumPy.
 
-        Returns:
-            np.ndarray: Mảng chứa dữ liệu huấn luyện.
+    def create_training_data(self, file_path: str) -> np.ndarray:
         """
-        data = [
-            ['Sunny', 'Hot', 'High', 'Weak', 'No'],
-            ['Sunny', 'Hot', 'High', 'Strong', 'No'],
-            ['Overcast', 'Hot', 'High', 'Weak', 'Yes'],
-            ['Rain', 'Mild', 'High', 'Weak', 'Yes'],
-            ['Rain', 'Cool', 'Normal', 'Weak', 'Yes'],
-            ['Rain', 'Cool', 'Normal', 'Strong', 'No'],
-            ['Overcast', 'Cool', 'Normal', 'Strong', 'Yes'],
-            ['Sunny', 'Mild', 'High', 'Weak', 'No'],
-            ['Sunny', 'Cool', 'Normal', 'Weak', 'Yes'],
-            ['Rain', 'Mild', 'Normal', 'Weak', 'Yes'],
-            ['Sunny', 'Mild', 'Normal', 'Strong', 'Yes'],
-            ['Overcast', 'Mild', 'High', 'Strong', 'Yes'],
-            ['Overcast', 'Hot', 'Normal', 'Weak', 'Yes'],
-            ['Rain', 'Mild', 'High', 'Strong', 'No'],
-        ]
+        Đọc dữ liệu huấn luyện từ file Excel hoặc CSV.
+        Args:
+            file_path (str): Đường dẫn tới file dữ liệu (.csv hoặc .xlsx).
+        Returns:
+            np.ndarray: Mảng dữ liệu huấn luyện (không bao gồm header).
+        """
+        # Đọc file dữ liệu train
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path)
+        elif file_path.endswith('.xlsx'):
+            df = pd.read_excel(file_path)
+        else:
+            raise ValueError("Chỉ hỗ trợ file .csv hoặc .xlsx")
+        
+        # Loại bỏ header và chuyển sang numpy array
+        data = df.values
         return np.array(data)
 
     def compute_prior_probabilities(self, train_data: np.ndarray) -> np.ndarray:
@@ -174,47 +171,4 @@ class NaiveBayesClassifier:
             'Yes': round(normalized_probs[1].item(), 2),
         }
 
-        return prediction, prob_dict
-
-    def main(self) -> None:
-        """Chạy chương trình chính để kiểm tra mô hình.
-
-        Tạo dữ liệu huấn luyện, huấn luyện mô hình và thực hiện dự đoán.
-        """
-        train_data = self.create_training_data()
-        print(train_data)
-        print("*"*30)
-
-        self.train(train_data)
-        prior_prob = self._prior_probs
-        print('P("Play Tennis" = No):', prior_prob[0])
-        print('P("Play Tennis" = Yes):', prior_prob[1])
-        print("*"*30)
-
-        con_probs = self._conditional_probs
-        feature_vals = self._feature_names
-        print("Conditional probabilities:", con_probs)
-        print("Feature values:", feature_vals)
-        print("*"*30)
-
-        outlook = feature_vals[1]
-        i1 = self.get_feature_index("Mild", outlook)
-        i2 = self.get_feature_index("Cool", outlook)
-        i3 = self.get_feature_index("Hot", outlook)
-        print(outlook)
-        print(i1, i2, i3)
-        print("*"*30)
-
-        X = ['Sunny', 'Cool', 'High', 'Strong']
-        prediction, prob_dict = self.predict_tennis(X)
-
-        if prediction == "Yes":
-            print("Ad should go!")
-        else:
-            print("Ad should not go!")
-        print(prediction, prob_dict)
-
-
-if __name__ == "__main__":
-    classifier = NaiveBayesClassifier()
-    classifier.main()
+        return prediction, prob_dict, class_probabilities
