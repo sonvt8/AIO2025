@@ -22,6 +22,7 @@ class NaiveBayesClassifier:
         self._prior_probs = None
         self._conditional_probs = None
         self._feature_names = None
+        self._class_probabilities = []
 
 
     def create_training_data(self, file_path: str) -> np.ndarray:
@@ -39,6 +40,9 @@ class NaiveBayesClassifier:
             df = pd.read_excel(file_path)
         else:
             raise ValueError("Chỉ hỗ trợ file .csv hoặc .xlsx")
+        
+        # Thay thế nan bằng chuỗi "None" và chuyển tất cả về kiểu chuỗi
+        df = df.fillna("None").astype(str)
         
         # Loại bỏ header và chuyển sang numpy array
         data = df.values
@@ -123,7 +127,7 @@ class NaiveBayesClassifier:
         """
         return np.where(feature_values == feature_value)[0][0]
 
-    def predict_tennis(
+    def predict_result(
         self, X: list[str]
     ) -> tuple[str, dict[str, float]]:
         """Dự đoán kết quả chơi tennis dựa trên đặc trưng.
@@ -143,32 +147,48 @@ class NaiveBayesClassifier:
             )
 
         # Tính xác suất cho mỗi lớp
-        class_probabilities = []
+        
         for class_idx in range(len(self._class_names)):
             prob = self._prior_probs[class_idx]
             for feature_idx, value_idx in enumerate(feature_indices):
                 prob *= self._conditional_probs[feature_idx][
                     class_idx, value_idx
                 ]
-            class_probabilities.append(prob)
+            self._class_probabilities.append(prob)
 
         # Chuẩn hóa xác suất
-        total_prob = sum(class_probabilities)
+        total_prob = sum(self._class_probabilities)
         if total_prob > 0:
             normalized_probs = [
-                p / total_prob for p in class_probabilities
+                p / total_prob for p in self._class_probabilities
             ]
         else:
             normalized_probs = [0.5, 0.5]
 
         # Dự đoán
-        predicted_class_idx = np.argmax(class_probabilities)
+        predicted_class_idx = np.argmax(self._class_probabilities)
         prediction = self._class_names[predicted_class_idx]
-
+        
         # Tạo từ điển xác suất
-        prob_dict = {
-            'No': round(normalized_probs[0].item(), 2),
-            'Yes': round(normalized_probs[1].item(), 2),
-        }
+        prob_dict = {}
+        for idx, value in enumerate(self._class_names):
+            prob_dict[value] = round(normalized_probs[idx].item(), 2)
+        
+        return prediction, prob_dict
+    
 
-        return prediction, prob_dict, class_probabilities
+    def predict_result_x(
+            self, x: str
+        ) -> float:
+            """Dự đoán kết quả chơi tennis dựa trên đặc trưng.
+
+            Args:
+                X (list[str]): Danh sách các giá trị đặc trưng.
+
+            Returns:
+                tuple[str, dict[str, float]]: Cặp (dự đoán, từ điển xác suất).
+            """
+            for idx, value in enumerate(self._class_names):
+                if x == value:
+                    return self._class_probabilities[idx]
+            return 0
