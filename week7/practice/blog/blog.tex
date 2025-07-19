@@ -1,0 +1,285 @@
+\section{Giới thiệu: Tại sao thống kê quan trọng trong Machine Learning?}
+
+Bạn có bao giờ tự hỏi tại sao các thuật toán AI có thể "hiểu" dữ liệu và dự đoán chính xác như thần? Bí mật nằm ở những khái niệm thống kê đơn giản như Mean, Median, và Variance – những thứ gần gũi như tính điểm trung bình lớp học hay lý giải tại sao Netflix gợi ý đúng phim bạn thích~\cite{datacamp2024}. Hãy cùng bắt đầu chuyến phiêu lưu thống kê để khám phá sức mạnh của Machine Learning!
+
+\subsection{Vì sao thống kê là "linh hồn" của Machine Learning?}
+
+Machine Learning không phải phép màu – nó là thống kê được áp dụng một cách thông minh. Theo Nalisnick~\cite{nalisnick2023}, ngay cả các mô hình deep learning hiện đại cũng bắt rễ từ những nguyên lý thống kê cơ bản. Trong bài blog này, chúng ta sẽ:
+
+\begin{itemize}
+\item Hiểu rõ ý nghĩa của Mean, Median, và Variance trong AI.
+\item Thực hành với Python để cảm nhận sức mạnh của thống kê.
+\item Áp dụng vào các bài toán thực tế, từ phân tích dữ liệu đến xử lý ảnh.
+\end{itemize}
+
+\section{Mean - Không chỉ là "trung bình" đơn thuần}
+
+\subsection{Mean là gì?}
+
+Mean (trung bình) là "trọng tâm" của dữ liệu, được tính bằng:
+
+\[
+\mu = \frac{1}{n}\sum_{i=1}^{n} x_i
+\]
+
+\textbf{Ví dụ đời thường:} Hãy tưởng tượng bạn là giáo viên chấm điểm cho 30 học sinh. Điểm trung bình 8.5 không chỉ nói lên mức độ "trung bình" mà còn cho biết: nếu điểm dao động từ 5 đến 10, lớp học có sự phân hóa; nếu điểm đều quanh 8–9, lớp đồng đều hơn~\cite{geeksforgeeks2024}.
+
+\subsection{Mean trong Machine Learning: Chuẩn hóa dữ liệu}
+
+Mean là công cụ quan trọng trong chuẩn hóa dữ liệu, giúp các thuật toán so sánh dữ liệu trên cùng một thang đo:
+
+\begin{lstlisting}[caption={Feature scaling using Mean},label={lst:mean-scaling}]
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+# Sample dataset: student math scores
+scores = [85, 90, 78, 92, 88, 76, 94, 82]
+
+# Calculate mean
+mean_score = np.mean(scores)
+print(f"Mean score: {mean_score:.2f}")
+
+# Standardize scores using StandardScaler
+scaler = StandardScaler()
+standardized_scores = scaler.fit_transform(np.array(scores).reshape(-1, 1))
+
+print("Original vs Standardized scores:")
+for i in range(len(scores)):
+    print(f"Score: {scores[i]} -> Standardized: {standardized_scores[i][0]:.2f}")
+\end{lstlisting}
+
+\subsection{Hạn chế của Mean}
+
+Mean rất nhạy với outliers (giá trị ngoại lai). Ví dụ: thu nhập trung bình của một khu phố có thể bị "kéo lệch" bởi một vài tỷ phú, hay thời gian phản hồi của website tăng vọt vì vài request chậm chạp.
+
+\section{Median - "Người trọng tài công bằng"}
+
+\subsection{Tại sao Median quan trọng?}
+
+Median là giá trị ở giữa khi sắp xếp dữ liệu, không bị ảnh hưởng bởi outliers, giống như một trọng tài công bằng không bị lung lay bởi những giá trị cực đoan~\cite{datacamp2025}:
+
+\[
+\text{Median} = \begin{cases}
+x_{(n+1)/2} & \text{nếu } n \text{ lẻ} \\
+\frac{x_{n/2} + x_{n/2+1}}{2} & \text{nếu } n \text{ chẵn}
+\end{cases}
+\]
+
+\subsection{Ví dụ thực tế: Thu nhập}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Người} & \textbf{Thu nhập (triệu VNĐ/tháng)} \\
+\hline
+Anh A & 8 \\
+Chị B & 12 \\
+Anh C & 15 \\
+Chị D & 5 \\
+CEO E & 200 \\
+\hline
+\textbf{Mean} & 48 triệu \\
+\textbf{Median} & 12 triệu \\
+\hline
+\end{tabular}
+\caption{So sánh Mean vs Median trong thu nhập}
+\end{table}
+
+Thu nhập 200 triệu của CEO kéo Mean lên 48 triệu, nhưng Median 12 triệu phản ánh đúng hơn mức thu nhập phổ biến của nhóm.
+
+\subsection{Median trong xử lý ảnh: Giảm nhiễu}
+
+Median rất hiệu quả trong việc loại bỏ nhiễu ảnh mà không làm mờ chi tiết:
+
+\begin{lstlisting}[caption={Reducing image noise with Median},label={lst:median-denoising}]
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load a noisy image in grayscale
+image = cv2.imread('noisy_image.ổn định, dễ dự đo', cv2.IMREAD_GRAYSCALE)
+
+# Apply median filter to reduce noise
+denoised_image = cv2.medianBlur(image, 5)  # 5x5 kernel
+
+# Display results
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(image, cmap='gray')
+plt.title('Original Noisy Image')
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
+plt.imshow(denoised_image, cmap='gray')
+plt.title('After Median Filter')
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()
+\end{lstlisting}
+
+\textbf{Giải thích:} Bộ lọc Median thay thế các pixel nhiễu bằng giá trị trung vị của các pixel lân cận, giữ được các cạnh sắc nét~\cite{tutorialspoint2025}.
+
+\section{Variance và Standard Deviation - "Cảm biến" sự biến động}
+
+\subsection{Variance và Standard Deviation là gì?}
+
+Variance đo mức độ "rải rác" của dữ liệu quanh Mean:
+
+\[
+\text{Var}(X) = \frac{1}{n}\sum_{i=1}^{n}(x_i - \mu)^2
+\]
+
+Standard Deviation là căn bậc hai của Variance, cho cảm giác trực quan hơn về độ phân tán:
+
+\[
+\text{Std}(X) = \sqrt{\text{Var}(X)}
+\]
+
+\subsection{Ví dụ sinh động: Hai lớp học khác nhau}
+
+Hãy tưởng tượng hai lớp học có cùng điểm trung bình 7.5:
+
+\begin{itemize}
+\item \textbf{Lớp A:} Điểm từ 7.0–8.0 (Std = 0.3)
+\item \textbf{Lớp B:} Điểm từ 4.0–10.0 (Std = 1.8)
+\end{itemize}
+
+\begin{lstlisting}[caption={Comparing Variance between two classes},label={lst:variance}]
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Scores for two classes
+class_A = [7.2, 7.5, 7.8, 7.3, 7.6, 7.4, 7.7, 7.1]
+class_B = [4.5, 8.2, 6.0, 9.5, 5.5, 8.8, 10.0, 4.0]
+
+# Calculate Mean and Standard Deviation
+print(f"Class A - Mean: {np.mean(class_A):.2f}, Std: {np.std(class_A):.2f}")
+print(f"Class B - Mean: {np.mean(class_B):.2f}, Std: {np.std(class_B):.2f}")
+
+# Visualize distributions
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.hist(class_A, bins=5, color='blue', alpha=0.7, edgecolor='black')
+plt.title('Class A (Low Variance)')
+plt.xlabel('Scores')
+plt.ylabel('Frequency')
+
+plt.subplot(1, 2, 2)
+plt.hist(class_B, bins=5, color='red', alpha=0.7, edgecolor='black')
+plt.title('Class B (High Variance)')
+plt.xlabel('Scores')
+plt.ylabel('Frequency')
+
+plt.tight_layout()
+plt.show()
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{variance.png}
+    \caption{Phân bố điểm của 2 lớp A và B .}
+\end{figure}
+
+\textbf{Kết luận:} Lớp A ổn định, dễ dự đoán, trong khi lớp B có sự chênh lệch lớn, cần tìm hiểu thêm nguyên nhân.
+
+\section{So sánh tổng quan và khi nào dùng gì}
+
+\subsection{Bảng tham khảo nhanh}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Chỉ số} & \textbf{Khi nào dùng} & \textbf{Nhược điểm} \\
+\hline
+\textbf{Mean} & Dữ liệu phân bố chuẩn, ít outliers & Nhạy cảm với outliers \\
+\hline
+\textbf{Median} & Dữ liệu có outliers, phân bố lệch & Bỏ qua thông tin của giá trị cực đại \\
+\hline
+\textbf{Variance/Std} & Đo lường sự biến động & Nhạy cảm với outliers \\
+\hline
+\end{tabularx}
+\caption{So sánh các chỉ số thống kê~\cite{simplilearn2025}}
+\end{table}
+
+\subsection{Hướng dẫn chọn chỉ số}
+
+Cách chọn chỉ số phù hợp:
+
+\begin{enumerate}
+\item Vẽ histogram để xem phân bố dữ liệu.
+\item Kiểm tra outliers bằng boxplot.
+\item Quyết định:
+   \begin{itemize}
+   \item Phân bố chuẩn, ít outliers? Dùng \textbf{Mean}.
+   \item Nhiều outliers hoặc dữ liệu lệch? Dùng \textbf{Median}.
+   \item Cần đo sự biến động? Dùng \textbf{Variance/Std}.
+   \end{itemize}
+\end{enumerate}
+
+\section{Thực hành: Phân tích dữ liệu với Python}
+
+Hãy cùng thử phân tích dữ liệu đơn giản để hiểu rõ hơn:
+
+\begin{lstlisting}[caption={Basic statistical analysis},label={lst:analysis}]
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Sample dataset: student scores with an outlier
+data = {
+    'scores': [85, 90, 78, 92, 88, 76, 94, 82, 200]
+}
+df = pd.DataFrame(data)
+
+# Calculate statistics
+mean = df['scores'].mean()
+median = df['scores'].median()
+std = df['scores'].std()
+
+print(f"Mean: {mean:.2f}")
+print(f"Median: {median:.2f}")
+print(f"Standard Deviation: {std:.2f}")
+
+# Visualize distribution
+plt.hist(df['scores'], bins=10, alpha=0.7, edgecolor='black')
+plt.axvline(mean, color='red', linestyle='--', label=f'Mean: {mean:.2f}')
+plt.axvline(median, color='green', linestyle='--', label=f'Median: {median:.2f}')
+plt.title('Distribution of Student Scores')
+plt.xlabel('Scores')
+plt.ylabel('Frequency')
+plt.legend()
+plt.show()
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{mean and median.png}
+    \caption{Ảnh hưởng của outlier đến giá trị Mean và Median}
+\end{figure}
+
+Đoạn code mẫu sử dụng biểu đồ hiện thị và cho thấy giá trị ngoại lai (200) làm Mean bị lệch, nhưng Median vẫn phản ánh đúng xu hướng chung.
+
+\section{Kết luận: Thống kê mang lại lợi ích gì?}
+
+Thống kê không chỉ là phép tính – nó là ngôn ngữ để hiểu dữ liệu và là nền tảng của AI. Mean, Median, và Variance giúp bạn:
+
+\begin{itemize}
+\item \textbf{Hiểu sâu dữ liệu:} Không chỉ nhìn con số mà còn thấy câu chuyện phía sau.
+\item \textbf{Đưa ra quyết định thông minh:} Chọn đúng chỉ số cho từng tình huống.
+\item \textbf{Xây dựng AI tốt hơn:} Nền tảng vững chắc dẫn đến mô hình hiệu quả.
+\end{itemize}
+
+\subsection{Bước tiếp theo}
+
+Muốn đi xa hơn? Hãy:
+
+\begin{enumerate}
+\item Thực hành với dữ liệu thực tế bằng module \texttt{statistics} của Python~\cite{python2025}.
+\item Đọc \textit{Pattern Recognition and Machine Learning} của Christopher Bishop~\cite{bishop2006pattern}.
+\item Tìm hiểu về xác suất để làm chủ các kỹ thuật AI nâng cao.
+\end{enumerate}
+
+\textbf{Hãy nhớ:} Mọi đột phá trong AI đều bắt đầu từ thống kê. Nắm vững những kiến thức cơ bản này, bạn sẽ sẵn sàng chinh phục thế giới Machine Learning!
