@@ -7,7 +7,9 @@ import numpy as np
 from typing import List
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
-
+import os
+import joblib
+import logging
 
 class EmbeddingGenerator:
     """Class để tạo embeddings từ văn bản."""
@@ -18,26 +20,56 @@ class EmbeddingGenerator:
         
         Args:
             config: Cấu hình hệ thống
+            
+        Raises:
+            ValueError: Nếu cấu hình không hợp lệ
+            Exception: Nếu lỗi khi tải model hoặc tokenizer
         """
         self.config = config
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu'
-        )
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # Tải model và tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            config.model_name
-        )
-        self.model = AutoModel.from_pretrained(config.model_name)
-        self.model = self.model.to(self.device)
-        self.model.eval()
+        # Đường dẫn lưu model và tokenizer
+        cache_dir = os.path.join('cache', 'models')
+        os.makedirs(cache_dir, exist_ok=True)
+        model_cache_path = os.path.join(cache_dir, f"model_{self.config.model_name.replace('/', '_')}.joblib")
+        tokenizer_cache_path = os.path.join(cache_dir, f"tokenizer_{self.config.model_name.replace('/', '_')}.joblib")
         
-        print(f'Sử dụng device: {self.device}')
-        print(f'Model đã tải: {config.model_name}')
+        # Kiểm tra và tải model từ cache nếu có
+        if os.path.exists(model_cache_path) and os.path.exists(tokenizer_cache_path):
+            try:
+                self.model = joblib.load(model_cache_path)
+                self.tokenizer = joblib.load(tokenizer_cache_path)
+                self.model = self.model.to(self.device)
+                self.model.eval()
+                logging.info(f"Đã tải model và tokenizer từ cache: {model_cache_path}, {tokenizer_cache_path}")
+            except Exception as e:
+                logging.error(f"Lỗi khi tải model hoặc tokenizer từ cache: {str(e)}")
+                self._load_new_model()
+        else:
+            self._load_new_model()
+            # Lưu model và tokenizer vào cache
+            try:
+                joblib.dump(self.model, model_cache_path)
+                joblib.dump(self.tokenizer, tokenizer_cache_path)
+                logging.info(f"Đã lưu model và tokenizer vào cache: {model_cache_path}, {tokenizer_cache_path}")
+            except Exception as e:
+                logging.error(f"Lỗi khi lưu model hoặc tokenizer vào cache: {str(e)}")
+        
+        logging.info(f'Sử dụng device: {self.device}')
+        logging.info(f'Model đã tải: {config.model_name}')
     
-    def _average_pool(self, 
-                     last_hidden_states: torch.Tensor, 
-                     attention_mask: torch.Tensor) -> torch.Tensor:
+    def _load_new_model(self):
+        """Tải model và tokenizer mới từ pretrained."""
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)
+            self.model = AutoModel.from_pretrained(self.config.model_name)
+            self.model = self.model.to(self.device)
+            self.model.eval()
+        except Exception as e:
+            logging.error(f"Lỗi khi tải model hoặc tokenizer: {str(e)}")
+            raise
+    
+    def _average_pool(self, last_hidden_states: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """
         Tính average pooling cho embeddings.
         
@@ -48,17 +80,12 @@ class EmbeddingGenerator:
         Returns:
             Pooled embeddings
         """
-        last_hidden = last_hidden_states.masked_fill(
-            ~attention_mask[..., None].bool(), 0.0
-        )
-        return (last_hidden.sum(dim=1) / 
-                attention_mask.sum(dim=1)[..., None])
+        last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
+        return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
     
-    def generate_embeddings(self, 
-                          texts: List[str], 
-                          prefix: str = "passage") -> np.ndarray:
+    def generate_embeddings(self, texts: List[str], prefix: str = "passage") -> np.ndarray:
         """
-        Tạo embeddings cho danh sách văn bản.
+        Tạo embeddings cho danh sách văn bản, với tùy chọn tải từ file nếu đã tồn tại.
         
         Args:
             texts: Danh sách văn bản
@@ -66,20 +93,35 @@ class EmbeddingGenerator:
             
         Returns:
             Array embeddings đã được normalize
+            
+        Raises:
+            Exception: Nếu lỗi khi tạo hoặc lưu embeddings
         """
+        # Đường dẫn lưu embeddings
+        embeddings_dir = os.path.join('cache', 'embeddings')
+        os.makedirs(embeddings_dir, exist_ok=True)
+        embeddings_file = os.path.join(embeddings_dir, f"embeddings_{self.config.model_name.replace('/', '_')}.npy")
+        
+        # Kiểm tra xem file embeddings đã tồn tại chưa
+        if os.path.exists(embeddings_file):
+            try:
+                embeddings = np.load(embeddings_file)
+                if embeddings.shape[0] == len(texts):
+                    logging.info(f"Đã tải embeddings từ file: {embeddings_file}")
+                    return embeddings
+                else:
+                    logging.warning(f"Kích thước embeddings trong file không khớp. Tạo mới embeddings.")
+            except Exception as e:
+                logging.error(f"Lỗi khi tải embeddings từ file {embeddings_file}: {str(e)}")
+        
+        # Tạo embeddings mới
         embeddings = []
         batch_size = self.config.batch_size
         
-        for i in tqdm(range(0, len(texts), batch_size), 
-                     desc="Đang tạo embeddings"):
+        for i in tqdm(range(0, len(texts), batch_size), desc="Đang tạo embeddings"):
             batch_texts = texts[i:i+batch_size]
+            batch_texts_with_prefix = [f"{prefix}: {text}" for text in batch_texts]
             
-            # Thêm prefix cho hiệu suất retrieval tốt hơn
-            batch_texts_with_prefix = [
-                f"{prefix}: {text}" for text in batch_texts
-            ]
-            
-            # Tokenize
             batch_dict = self.tokenizer(
                 batch_texts_with_prefix,
                 max_length=self.config.max_length,
@@ -88,25 +130,27 @@ class EmbeddingGenerator:
                 return_tensors='pt'
             )
             
-            # Chuyển sang device
-            batch_dict = {
-                k: v.to(self.device) for k, v in batch_dict.items()
-            }
+            batch_dict = {k: v.to(self.device) for k, v in batch_dict.items()}
             
-            # Tạo embeddings
             with torch.no_grad():
                 outputs = self.model(**batch_dict)
                 batch_embeddings = self._average_pool(
                     outputs.last_hidden_state, 
                     batch_dict['attention_mask']
                 )
-                # Normalize embeddings
-                batch_embeddings = F.normalize(
-                    batch_embeddings, p=2, dim=1
-                )
+                batch_embeddings = F.normalize(batch_embeddings, p=2, dim=1)
                 embeddings.append(batch_embeddings.cpu().numpy())
         
-        return np.vstack(embeddings)
+        embeddings = np.vstack(embeddings)
+        
+        # Lưu embeddings vào file
+        try:
+            np.save(embeddings_file, embeddings)
+            logging.info(f"Đã lưu embeddings vào file: {embeddings_file}")
+        except Exception as e:
+            logging.error(f"Lỗi khi lưu embeddings vào file {embeddings_file}: {str(e)}")
+        
+        return embeddings
     
     def generate_query_embedding(self, text: str) -> np.ndarray:
         """
@@ -127,9 +171,7 @@ class EmbeddingGenerator:
             return_tensors='pt'
         )
         
-        batch_dict = {
-            k: v.to(self.device) for k, v in batch_dict.items()
-        }
+        batch_dict = {k: v.to(self.device) for k, v in batch_dict.items()}
         
         with torch.no_grad():
             outputs = self.model(**batch_dict)

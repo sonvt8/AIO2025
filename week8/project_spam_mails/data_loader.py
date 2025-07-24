@@ -6,7 +6,10 @@ import numpy as np
 from typing import Tuple, List, Dict, Any
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 class DataLoader:
     """Class để tải và xử lý dữ liệu."""
@@ -20,20 +23,39 @@ class DataLoader:
         """
         self.config = config
         self.label_encoder = LabelEncoder()
-        
+        logger.info("Đã khởi tạo DataLoader")
+    
     def load_data(self) -> Tuple[List[str], List[str]]:
         """
         Tải dữ liệu từ file CSV.
         
         Returns:
             Tuple chứa danh sách tin nhắn và nhãn
-        """
-        df = pd.read_csv(self.config.dataset_path)
-        messages = df['Message'].values.tolist()
-        labels = df['Category'].values.tolist()
-        self.label_encoder.fit(labels)
         
-        return messages, labels
+        Raises:
+            FileNotFoundError: Nếu file CSV không tồn tại
+            ValueError: Nếu file CSV thiếu cột cần thiết
+        """
+        if not os.path.exists(self.config.dataset_path):
+            logger.error(f"File CSV không tồn tại: {self.config.dataset_path}")
+            raise FileNotFoundError(f"File CSV không tồn tại: {self.config.dataset_path}")
+        
+        try:
+            df = pd.read_csv(self.config.dataset_path)
+            required_columns = ['Message', 'Category']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                logger.error(f"File CSV thiếu cột: {missing_columns}")
+                raise ValueError(f"File CSV thiếu cột: {missing_columns}")
+            
+            messages = df['Message'].values.tolist()
+            labels = df['Category'].values.tolist()
+            self.label_encoder.fit(labels)
+            logger.info(f"Đã tải dữ liệu từ {self.config.dataset_path}. Số mẫu: {len(messages)}")
+            return messages, labels
+        except Exception as e:
+            logger.error(f"Lỗi khi đọc file CSV: {str(e)}")
+            raise
     
     def create_metadata(self, 
                        messages: List[str], 

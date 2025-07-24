@@ -3,6 +3,7 @@ Cấu hình cho hệ thống phân loại email spam/ham.
 """
 from dataclasses import dataclass
 from typing import List
+import os
 
 
 @dataclass
@@ -24,9 +25,12 @@ class SpamClassifierConfig:
     
     # Đường dẫn
     dataset_path: str = './dataset/2cls_spam_text_cls.csv'
-    output_file: str = 'error_analysis.json'
+    output_dir: str = './cache/output'
+    output_file: str = os.path.join(output_dir, 'error_analysis.json')
     
     def __post_init__(self):
         """Khởi tạo các giá trị mặc định sau khi tạo object."""
         if self.k_values is None:
             self.k_values = [1, 3, 5]
+        # Tạo thư mục output nếu chưa tồn tại
+        os.makedirs(self.output_dir, exist_ok=True)

@@ -200,3 +200,5 @@ documents
 log.*
 *.log
 .DS_Store
+cache*
+logs

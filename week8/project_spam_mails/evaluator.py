@@ -8,6 +8,7 @@ from collections import Counter
 import json
 from knn_classifier import KNNClassifier
 from datetime import datetime
+import logging
 
 
 class ModelEvaluator:
@@ -138,11 +139,13 @@ class ModelEvaluator:
                 'errors': errors
             }
         
-        # Lưu vào file JSON
-        with open(self.config.output_file, 'w', encoding='utf-8') as f:
-            json.dump(error_analysis, f, ensure_ascii=False, indent=2)
-        
-        print(f"\n***Phân tích lỗi đã lưu vào: {self.config.output_file}***")
-        print("\n***Tóm tắt:")
-        for k, errors in error_results.items():
-            print(f"   k={k}: {len(errors)} lỗi trong {test_size} mẫu")
+        try:
+            with open(self.config.output_file, 'w', encoding='utf-8') as f:
+                json.dump(error_analysis, f, ensure_ascii=False, indent=2)
+            logging.info(f"Phân tích lỗi đã lưu vào: {self.config.output_file}")
+            logging.info("Tóm tắt:")
+            for k, errors in error_results.items():
+                logging.info(f"   k={k}: {len(errors)} lỗi trong {test_size} mẫu")
+        except Exception as e:
+            logging.error(f"Lỗi khi lưu phân tích lỗi vào file {self.config.output_file}: {str(e)}")
+            raise
