@@ -28,6 +28,10 @@ class SpamClassifierConfig:
     output_dir: str = './cache/output'
     output_file: str = os.path.join(output_dir, 'error_analysis.json')
     
+    # Flag để yêu cầu có hoặc không tạo lại embedding
+    # Sử dụng python main.py --regenerate khi thực thi file nếu muốn tạo lại Embedding
+    regenerate_embeddings: bool = False
+    
     def __post_init__(self):
         """Khởi tạo các giá trị mặc định sau khi tạo object."""
         if self.k_values is None:

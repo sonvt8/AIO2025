@@ -6,6 +6,7 @@ from spam_classifier import SpamClassifierPipeline
 from config import SpamClassifierConfig
 import logging
 import os
+import argparse  # Thêm import argparse để parse CLI args
 
 # Thiết lập logging tập trung
 log_dir = 'logs'
@@ -22,10 +23,18 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Hàm chính để chạy spam classifier."""
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="Run spam classifier pipeline.")
+    parser.add_argument('--regenerate', action='store_true', default=False,
+                        help='Set to regenerate embeddings (default: False)')
+    args = parser.parse_args()
+    
     try:
         # Khởi tạo cấu hình
         config = SpamClassifierConfig()
-        logger.info("Khởi tạo cấu hình thành công")
+        # Cập nhật flag từ CLI
+        config.regenerate_embeddings = args.regenerate
+        logger.info(f"Regenerate embeddings: {config.regenerate_embeddings}")
         
         # Tạo pipeline
         pipeline = SpamClassifierPipeline(config)

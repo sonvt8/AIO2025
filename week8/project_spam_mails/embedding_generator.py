@@ -102,6 +102,12 @@ class EmbeddingGenerator:
         os.makedirs(embeddings_dir, exist_ok=True)
         embeddings_file = os.path.join(embeddings_dir, f"embeddings_{self.config.model_name.replace('/', '_')}.npy")
         
+        # Nếu flag regenerate_embeddings là True, xóa cache nếu tồn tại
+        if self.config.regenerate_embeddings:
+            if os.path.exists(embeddings_file):
+                os.remove(embeddings_file)
+                logging.info(f"Đã xóa embeddings cache cũ: {embeddings_file} (do flag regenerate_embeddings=True)")
+        
         # Kiểm tra xem file embeddings đã tồn tại chưa
         if os.path.exists(embeddings_file):
             try:

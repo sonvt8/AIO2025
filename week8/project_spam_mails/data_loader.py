@@ -8,6 +8,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import os
 import logging
+import re
+import string
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import nltk
+
+# Download NLTK packages (chỉ run nếu chưa có, quiet để không in thừa)
+nltk.download('stopwords', quiet=True)
+nltk.download('wordnet', quiet=True)
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +34,37 @@ class DataLoader:
         self.label_encoder = LabelEncoder()
         logger.info("Đã khởi tạo DataLoader")
     
+    def preprocess_text(self, text: str) -> str:
+        """
+        Xử lý trước văn bản: remove URLs/emails/numbers, lowercase, remove punctuation,
+        remove stop words, và lemmatize.
+
+        Args:
+            text: Văn bản đầu vào cần xử lý
+
+        Returns:
+            Văn bản đã xử lý dưới dạng chuỗi
+        """
+        lemmatizer = WordNetLemmatizer()
+        stop_words = set(stopwords.words('english'))
+
+        # Remove URLs, emails, numbers
+        text = re.sub(r'http\S+|www\S+|https\S+', '', text)  # URLs
+        text = re.sub(r'\S+@\S+', '', text)  # Emails
+        text = re.sub(r'\d+', '', text)  # Numbers
+
+        # Lowercase and remove punctuation
+        text = text.lower().translate(str.maketrans('', '', string.punctuation))
+
+        # Tokenize, remove stop words, lemmatize
+        return ' '.join([lemmatizer.lemmatize(word) for word in text.split() if word not in stop_words])
+    
     def load_data(self) -> Tuple[List[str], List[str]]:
         """
-        Tải dữ liệu từ file CSV.
+        Tải dữ liệu từ file CSV và áp dụng preprocess.
         
         Returns:
-            Tuple chứa danh sách tin nhắn và nhãn
+            Tuple chứa danh sách tin nhắn đã preprocess và nhãn
         
         Raises:
             FileNotFoundError: Nếu file CSV không tồn tại
@@ -51,8 +85,12 @@ class DataLoader:
             messages = df['Message'].values.tolist()
             labels = df['Category'].values.tolist()
             self.label_encoder.fit(labels)
+            
+            # Áp dụng preprocess cho messages
+            preprocessed_messages = [self.preprocess_text(msg) for msg in messages]
+            
             logger.info(f"Đã tải dữ liệu từ {self.config.dataset_path}. Số mẫu: {len(messages)}")
-            return messages, labels
+            return preprocessed_messages, labels
         except Exception as e:
             logger.error(f"Lỗi khi đọc file CSV: {str(e)}")
             raise
@@ -65,7 +103,7 @@ class DataLoader:
         Tạo metadata cho mỗi document.
         
         Args:
-            messages: Danh sách tin nhắn
+            messages: Danh sách tin nhắn (đã preprocess)
             labels: Danh sách nhãn gốc
             encoded_labels: Nhãn đã được encode
             
@@ -76,7 +114,7 @@ class DataLoader:
         for i, (message, label) in enumerate(zip(messages, labels)):
             metadata.append({
                 'index': i,
-                'message': message,
+                'message': message,  # Đây là message đã preprocess
                 'label': label,
                 'label_encoded': encoded_labels[i]
             })
@@ -103,7 +141,7 @@ class DataLoader:
         train_indices, test_indices = train_test_split(
             range(len(messages)),
             test_size=self.config.test_size,
-            stratify=encoded_labels, #chia tỉ lệ spam/ham xấp xỉ tỉ lệ gốc
+            stratify=encoded_labels,  # Chia tỉ lệ spam/ham xấp xỉ tỉ lệ gốc
             random_state=self.config.random_state
         )
         
