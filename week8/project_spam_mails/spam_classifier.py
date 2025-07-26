@@ -55,10 +55,10 @@ class SpamClassifierPipeline:
         train_metadata = [metadata[i] for i in train_indices]
         test_metadata = [metadata[i] for i in test_indices]
         
-        print(f"Kích thước train: {len(train_embeddings)}")
-        print(f"Kích thước test: {len(test_embeddings)}")
-        print(f"Phân bố nhãn train: {np.bincount(y_train)}")
-        print(f"Phân bố nhãn test: {np.bincount(y_test)}")
+        # print(f"Kích thước train: {len(train_embeddings)}")
+        # print(f"Kích thước test: {len(test_embeddings)}")
+        # print(f"Phân bố nhãn train: {np.bincount(y_train)}")
+        # print(f"Phân bố nhãn test: {np.bincount(y_test)}")
         
         # Tạo và huấn luyện classifier
         self.classifier = KNNClassifier(train_embeddings.shape[1])
@@ -70,13 +70,13 @@ class SpamClassifierPipeline:
             test_embeddings, test_metadata, self.classifier
         )
         
-        # Hiển thị kết quả
-        print("\n" + "="*50)
-        print("KẾT QUẢ ĐỘ CHÍNH XÁC")
-        print("="*50)
-        for k, accuracy in accuracy_results.items():
-            print(f"Top-{k} accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
-        print("="*50)
+        # # Hiển thị kết quả
+        # print("\n" + "="*50)
+        # print("KẾT QUẢ ĐỘ CHÍNH XÁC")
+        # print("="*50)
+        # for k, accuracy in accuracy_results.items():
+        #     print(f"Top-{k} accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+        # print("="*50)
         
         # Lưu phân tích lỗi
         self.evaluator.save_error_analysis(
@@ -101,8 +101,8 @@ class SpamClassifierPipeline:
         if k is None:
             k = self.config.default_k
         
-        print(f"\n***Đang phân loại: '{text}'")
-        print(f"\n***Sử dụng top-{k} nearest neighbors")
+        # print(f"\n***Đang phân loại: '{text}'")
+        # print(f"\n***Sử dụng top-{k} nearest neighbors")
         
         # Tạo query embedding
         query_embedding = self.embedding_generator.generate_query_embedding(
@@ -115,12 +115,12 @@ class SpamClassifierPipeline:
         )
         
         # Hiển thị kết quả
-        print(f"\n***Dự đoán: {prediction.upper()}")
-        print("\n***Top neighbors:")
-        for i, neighbor in enumerate(neighbors, 1):
-            print(f"{i}. Nhãn: {neighbor['label']} | "
-                  f"Điểm: {neighbor['score']:.4f}")
-            print(f"   Tin nhắn: {neighbor['message']}")
+        # print(f"\n***Dự đoán: {prediction.upper()}")
+        # print("\n***Top neighbors:")
+        # for i, neighbor in enumerate(neighbors, 1):
+        #     print(f"{i}. Nhãn: {neighbor['label']} | "
+        #           f"Điểm: {neighbor['score']:.4f}")
+        #     print(f"   Tin nhắn: {neighbor['message']}")
         
         # Đếm phân bố nhãn
         labels = [n['label'] for n in neighbors]

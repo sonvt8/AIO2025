@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import List
 import os
 
-
 @dataclass
 class SpamClassifierConfig:
     """Cấu hình cho spam classifier."""
@@ -29,12 +28,16 @@ class SpamClassifierConfig:
     output_file: str = os.path.join(output_dir, 'error_analysis.json')
     
     # Flag để yêu cầu có hoặc không tạo lại embedding
-    # Sử dụng python main.py --regenerate khi thực thi file nếu muốn tạo lại Embedding
     regenerate_embeddings: bool = False
+    
+    # Gmail API settings
+    credentials_path: str = './cache/input/credentials.json'
+    token_path: str = './cache/input/token.json'
     
     def __post_init__(self):
         """Khởi tạo các giá trị mặc định sau khi tạo object."""
         if self.k_values is None:
             self.k_values = [1, 3, 5]
-        # Tạo thư mục output nếu chưa tồn tại
+        # Tạo các thư mục nếu chưa tồn tại
         os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(self.credentials_path), exist_ok=True)

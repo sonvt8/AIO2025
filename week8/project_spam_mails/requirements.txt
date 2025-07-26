@@ -7,4 +7,7 @@ scikit-learn == 1.7.1
 tqdm == 4.67.1
 transformers == 4.53.3
 nltk == 3.9.1
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
 faiss-cpu
