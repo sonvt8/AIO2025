@@ -59,6 +59,109 @@ class DataLoader:
         # Tokenize, remove stop words, lemmatize
         return ' '.join([lemmatizer.lemmatize(word) for word in text.split() if word not in stop_words])
     
+    def load_emails_from_folders(self) -> Tuple[List[str], List[str]]:
+        """
+        Đọc email từ thư mục inbox (ham) và spam, trả về messages và labels.
+
+        Returns:
+            Tuple chứa danh sách tin nhắn và nhãn
+        """
+        messages = []
+        labels = []
+
+        # Đọc từ thư mục inbox (ham)
+        inbox_path = self.config.inbox_local_dir
+        if os.path.exists(inbox_path):
+            for filename in os.listdir(inbox_path):
+                if filename.endswith('.txt'):
+                    try:
+                        with open(os.path.join(inbox_path, filename), 'r', encoding='utf-8') as f:
+                            content = f.read().strip()
+                            if content:  # Chỉ thêm nếu không rỗng
+                                messages.append(content)
+                                labels.append('ham')
+                    except Exception as e:
+                        logger.warning(f"Lỗi khi đọc file {filename} trong inbox: {str(e)}")
+
+        # Đọc từ thư mục spam
+        spam_path = self.config.spam_local_dir
+        if os.path.exists(spam_path):
+            for filename in os.listdir(spam_path):
+                if filename.endswith('.txt'):
+                    try:
+                        with open(os.path.join(spam_path, filename), 'r', encoding='utf-8') as f:
+                            content = f.read().strip()
+                            if content:  # Chỉ thêm nếu không rỗng
+                                messages.append(content)
+                                labels.append('spam')
+                    except Exception as e:
+                        logger.warning(f"Lỗi khi đọc file {filename} trong spam: {str(e)}")
+
+        logger.info(f"Đã đọc {len(messages)} email từ thư mục inbox/spam")
+        return messages, labels
+    
+    def merge_emails_to_dataset(self) -> None:
+        """
+        Gộp email từ thư mục inbox/spam vào dataset hiện tại, loại bỏ trùng lặp,
+        và lưu vào dataset_path. Log so sánh số lượng và tỷ lệ spam/ham trước/sau.
+        """
+        # Đọc dataset hiện tại
+        old_count = 0
+        old_spam_ratio = 0.0
+        old_ham_ratio = 0.0
+        if os.path.exists(self.config.dataset_path):
+            try:
+                df = pd.read_csv(self.config.dataset_path)
+                old_count = len(df)
+                if old_count > 0:
+                    old_spam_count = len(df[df['Category'] == 'spam'])
+                    old_ham_count = len(df[df['Category'] == 'ham'])
+                    old_spam_ratio = old_spam_count / old_count
+                    old_ham_ratio = old_ham_count / old_count
+                existing_messages = set(df['Message'].values)
+            except Exception as e:
+                logger.error(f"Lỗi khi đọc dataset hiện tại: {str(e)}")
+                df = pd.DataFrame(columns=['Category', 'Message'])
+                existing_messages = set()
+        else:
+            df = pd.DataFrame(columns=['Category', 'Message'])
+            existing_messages = set()
+
+        # Log thông tin trước khi gộp
+        logger.info(f"Trước khi gộp: {old_count} mẫu, tỷ lệ spam: {old_spam_ratio:.2%}, ham: {old_ham_ratio:.2%}")
+
+        # Đọc email từ thư mục
+        new_messages, new_labels = self.load_emails_from_folders()
+
+        # Gộp dữ liệu mới, loại bỏ trùng lặp
+        new_data = []
+        for msg, label in zip(new_messages, new_labels):
+            if msg not in existing_messages:
+                new_data.append({'Category': label, 'Message': msg})
+                existing_messages.add(msg)
+
+        if new_data:
+            new_df = pd.DataFrame(new_data)
+            df = pd.concat([df, new_df], ignore_index=True)
+            
+            # Lưu dataset mới
+            try:
+                df.to_csv(self.config.dataset_path, index=False, encoding='utf-8')
+                new_count = len(df)
+                new_spam_count = len(df[df['Category'] == 'spam'])
+                new_ham_count = len(df[df['Category'] == 'ham'])
+                new_spam_ratio = new_spam_count / new_count if new_count > 0 else 0.0
+                new_ham_ratio = new_ham_count / new_count if new_count > 0 else 0.0
+                
+                # Log thông tin sau khi gộp
+                logger.info(f"Đã gộp {len(new_data)} email mới vào dataset: {self.config.dataset_path}")
+                logger.info(f"Sau khi gộp: {new_count} mẫu, tỷ lệ spam: {new_spam_ratio:.2%}, ham: {new_ham_ratio:.2%}")
+            except Exception as e:
+                logger.error(f"Lỗi khi lưu dataset: {str(e)}")
+                raise
+        else:
+            logger.info("Không có email mới để gộp hoặc tất cả đã trùng lặp")
+
     def load_data(self) -> Tuple[List[str], List[str]]:
         """
         Tải dữ liệu từ file CSV và áp dụng preprocess.

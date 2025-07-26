@@ -36,8 +36,8 @@ class SpamClassifierConfig:
     token_path: str = './cache/input/token.json'
     
     # Đường dẫn thư mục local để lưu email
-    inbox_local_dir: str = './inbox_local'
-    spam_local_dir: str = './spam_local'
+    inbox_local_dir: str = './inbox'
+    spam_local_dir: str = './spam'
     
     def __post_init__(self):
         """Khởi tạo các giá trị mặc định sau khi tạo object."""

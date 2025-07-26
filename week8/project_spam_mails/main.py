@@ -4,12 +4,13 @@ File chạy chính cho spam classifier.
 import numpy as np
 import time
 import signal
-from spam_classifier import SpamClassifierPipeline
-from config import SpamClassifierConfig
-from email_handler import EmailHandler
+import pandas as pd
 import logging
 import os
 import argparse
+from spam_classifier import SpamClassifierPipeline
+from config import SpamClassifierConfig
+from email_handler import EmailHandler
 
 # Thiết lập logging
 log_dir = 'logs'
@@ -40,6 +41,8 @@ def main():
                         help='Set to regenerate embeddings (default: False)')
     parser.add_argument('--run-email-classifier', action='store_true', default=False,
                         help='Run email classifier mode with Gmail API (default: False)')
+    parser.add_argument('--merge-emails', action='store_true', default=False,
+                        help='Merge emails from inbox/spam folders into dataset (default: False)')
     args = parser.parse_args()
     
     try:
@@ -51,6 +54,32 @@ def main():
         # Tạo pipeline
         pipeline = SpamClassifierPipeline(config)
         logger.info("Khởi tạo pipeline thành công")
+        
+        # Gộp email từ thư mục inbox/spam nếu có flag
+        if args.merge_emails:
+            logger.info("Gộp email từ thư mục inbox/spam vào dataset")
+            pipeline.data_loader.merge_emails_to_dataset()
+            
+            # Kiểm tra số dòng dataset so với embeddings cache
+            dataset_path = config.dataset_path
+            embeddings_file = os.path.join('cache', 'embeddings', f"embeddings_{config.model_name.replace('/', '_')}.npy")
+            if os.path.exists(dataset_path) and os.path.exists(embeddings_file):
+                try:
+                    df = pd.read_csv(dataset_path)
+                    dataset_count = len(df)
+                    embeddings = np.load(embeddings_file)
+                    cache_count = embeddings.shape[0]
+                    if cache_count != dataset_count and not args.regenerate:
+                        logger.warning(
+                            f"CẢNH BÁO: Số dòng trong dataset ({dataset_count}) không khớp với embeddings cache ({cache_count}). "
+                            "Vui lòng chạy lại với --regenerate để cập nhật embeddings trước khi tiếp tục."
+                        )
+                        return  # Dừng chương trình tại đây
+                    elif cache_count != dataset_count and args.regenerate:
+                        logger.info(f"Số dòng không khớp, sẽ regenerate embeddings...")
+                except Exception as e:
+                    logger.error(f"Lỗi khi kiểm tra dataset hoặc embeddings cache: {str(e)}")
+                    raise
         
         # Huấn luyện mô hình (chỉ chạy một lần)
         logger.info("Bắt đầu quá trình huấn luyện")
