@@ -202,3 +202,5 @@ log.*
 .DS_Store
 cache*
 logs
+inbox_local
+spam_local

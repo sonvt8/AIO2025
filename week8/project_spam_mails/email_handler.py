@@ -101,7 +101,7 @@ class EmailHandler:
             raise ConnectionError("Không thể kết nối mạng tới Gmail API.")
     
     def process_emails(self, max_results: int = 10):
-        """Fetch unread emails, classify, và apply label (move)."""
+        """Fetch unread emails, classify, apply label, và lưu vào thư mục local."""
         try:
             results = self.service.users().messages().list(
                 userId='me', 
@@ -110,58 +110,60 @@ class EmailHandler:
                 includeSpamTrash=True
             ).execute()
             messages = results.get('messages', [])
-
             if not messages:
                 print("Không có email mới nào.")
                 logger.info("Không có email mới để xử lý.")
                 return
+            
+            for msg in messages:
+                try:
+                    email = self.service.users().messages().get(
+                        userId='me', 
+                        id=msg['id'], 
+                        format='full'
+                    ).execute()
+                    
+                    # Extract body (ưu tiên plain text)
+                    body = ''
+                    if 'parts' in email['payload']:
+                        for part in email['payload']['parts']:
+                            if part['mimeType'] == 'text/plain' and 'data' in part['body']:
+                                body = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
+                                break
+                    elif 'body' in email['payload'] and 'data' in email['payload']['body']:
+                        body = base64.urlsafe_b64decode(email['payload']['body']['data']).decode('utf-8')
+                    
+                    if not body:
+                        logger.warning(f"Không extract được body cho email ID: {msg['id']}")
+                        continue
+                    
+                    # Classify
+                    result = self.pipeline.predict(body)
+                    prediction = result['prediction']
+                    
+                    # Apply label trong Gmail
+                    label_id = self.spam_label if prediction == 'spam' else self.inbox_label
+                    self.service.users().messages().modify(
+                        userId='me', 
+                        id=msg['id'], 
+                        body={'addLabelIds': [label_id], 'removeLabelIds': ['UNREAD']}
+                    ).execute()
+                    
+                    # Lưu vào thư mục local (không cần xác nhận)
+                    local_dir = self.config.spam_local_dir if prediction == 'spam' else self.config.inbox_local_dir
+                    filename = f"email_{msg['id']}.txt"
+                    with open(os.path.join(local_dir, filename), 'w', encoding='utf-8') as f:
+                        f.write(f"Subject: {email.get('snippet', 'No Subject')}\n\n{body}")
+                    logger.info(f"Lưu email ID {msg['id']} vào {local_dir}/{filename}")
+                except HttpError as e:
+                    logger.error(f"Lỗi khi xử lý email ID {msg['id']}: {str(e)}")
+                    continue
+                except requests.exceptions.ConnectionError as e:
+                    logger.error(f"Không thể xử lý email ID {msg['id']} do lỗi mạng: {str(e)}")
+                    raise ConnectionError(f"Không thể xử lý email ID {msg['id']} do lỗi mạng.")
         except HttpError as e:
             logger.error(f"Lỗi khi fetch emails: {str(e)}")
             raise
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Không thể fetch emails do lỗi mạng: {str(e)}")
             raise ConnectionError("Không thể fetch emails do lỗi mạng.")
-        
-        for msg in messages:
-            try:
-                email = self.service.users().messages().get(
-                    userId='me', 
-                    id=msg['id'], 
-                    format='full'
-                ).execute()
-                
-                # Extract body (ưu tiên plain text)
-                body = ''
-                if 'parts' in email['payload']:
-                    for part in email['payload']['parts']:
-                        if part['mimeType'] == 'text/plain' and 'data' in part['body']:
-                            body = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
-                            break
-                elif 'body' in email['payload'] and 'data' in email['payload']['body']:
-                    body = base64.urlsafe_b64decode(email['payload']['body']['data']).decode('utf-8')
-                
-                if not body:
-                    logger.warning(f"Không extract được body cho email ID: {msg['id']}")
-                    continue
-                
-                print(f"Body email: {body}")
-                # Classify
-                result = self.pipeline.predict(body)
-                prediction = result['prediction']
-                
-                # Apply label và remove UNREAD
-                label_id = self.spam_label if prediction == 'spam' else self.inbox_label
-                self.service.users().messages().modify(
-                    userId='me', 
-                    id=msg['id'], 
-                    body={'addLabelIds': [label_id], 'removeLabelIds': ['UNREAD']}
-                ).execute()
-                
-                print(f"Email ID {msg['id']} là {prediction.upper()} email. Đánh nhãn ID: {label_id}")
-                logger.info(f"Email ID {msg['id']} là {prediction} email. Đánh nhãn ID: {label_id}")
-            except HttpError as e:
-                logger.error(f"Lỗi khi xử lý email ID {msg['id']}: {str(e)}")
-                continue
-            except requests.exceptions.ConnectionError as e:
-                logger.error(f"Không thể xử lý email ID {msg['id']} do lỗi mạng: {str(e)}")
-                raise ConnectionError(f"Không thể xử lý email ID {msg['id']} do lỗi mạng.")

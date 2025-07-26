@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List
 import os
 
+
 @dataclass
 class SpamClassifierConfig:
     """Cấu hình cho spam classifier."""
@@ -34,6 +35,10 @@ class SpamClassifierConfig:
     credentials_path: str = './cache/input/credentials.json'
     token_path: str = './cache/input/token.json'
     
+    # Đường dẫn thư mục local để lưu email
+    inbox_local_dir: str = './inbox_local'
+    spam_local_dir: str = './spam_local'
+    
     def __post_init__(self):
         """Khởi tạo các giá trị mặc định sau khi tạo object."""
         if self.k_values is None:
@@ -41,3 +46,5 @@ class SpamClassifierConfig:
         # Tạo các thư mục nếu chưa tồn tại
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.credentials_path), exist_ok=True)
+        os.makedirs(self.inbox_local_dir, exist_ok=True)
+        os.makedirs(self.spam_local_dir, exist_ok=True)

@@ -2,6 +2,8 @@
 File chạy chính cho spam classifier.
 """
 import numpy as np
+import time
+import signal
 from spam_classifier import SpamClassifierPipeline
 from config import SpamClassifierConfig
 from email_handler import EmailHandler
@@ -22,6 +24,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Biến kiểm soát thoát
+running = True
+
+def signal_handler(sig, frame):
+    """Xử lý tín hiệu Ctrl+C để thoát an toàn."""
+    global running
+    running = False
+    logger.info("Nhận tín hiệu thoát. Đang dừng chương trình một cách an toàn...")
+
 def main():
     """Hàm chính để chạy spam classifier."""
     parser = argparse.ArgumentParser(description="Run spam classifier pipeline.")
@@ -35,21 +46,50 @@ def main():
         # Khởi tạo cấu hình
         config = SpamClassifierConfig()
         config.regenerate_embeddings = args.regenerate
-        logger.info(f"Tạo lại embeddings: {config.regenerate_embeddings}")
-            
+        logger.info(f"Regenerate embeddings: {config.regenerate_embeddings}")
+        
         # Tạo pipeline
         pipeline = SpamClassifierPipeline(config)
         logger.info("Khởi tạo pipeline thành công")
         
-        # Huấn luyện mô hình
+        # Huấn luyện mô hình (chỉ chạy một lần)
         logger.info("Bắt đầu quá trình huấn luyện")
         pipeline.train()
         
         if args.run_email_classifier:
-            # Mode classify email qua Gmail API
-            logger.info("Bắt đầu mode classify email qua Gmail API")
+            # Mode classify email qua Gmail API chạy nền
+            logger.info("Bắt đầu mode classify email qua Gmail API ở chế độ nền")
             handler = EmailHandler(pipeline, config)
-            handler.process_emails(max_results=20)
+            last_page_token = None
+            
+            # Đăng ký handler cho tín hiệu Ctrl+C
+            signal.signal(signal.SIGINT, signal_handler)
+            
+            while running:
+                try:
+                    # Lấy danh sách email mới
+                    results = handler.service.users().messages().list(
+                        userId='me',
+                        q='is:unread',
+                        maxResults=10,
+                        includeSpamTrash=True,
+                        pageToken=last_page_token
+                    ).execute()
+                    messages = results.get('messages', [])
+                    
+                    if messages:
+                        logger.info(f"Phát hiện {len(messages)} email mới. Bắt đầu xử lý...")
+                        handler.process_emails(max_results=10)
+                        last_page_token = results.get('nextPageToken')
+                    else:
+                        logger.info("Không có email mới. Chờ 30 giây...")
+                    
+                    time.sleep(30)  # Delay 30 giây trước khi kiểm tra lại
+                except Exception as e:
+                    logger.error(f"Lỗi khi xử lý email: {str(e)}")
+                    time.sleep(60)  # Delay lâu hơn nếu lỗi để tránh spam API
+            
+            logger.info("Chương trình đã dừng an toàn.")
         else:
             # Test với các ví dụ khác nhau
             test_examples = [
