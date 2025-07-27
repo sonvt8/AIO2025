@@ -9,7 +9,6 @@ from config import SpamClassifierConfig
 from data_loader import DataLoader
 from embedding_generator import EmbeddingGenerator
 from knn_classifier import KNNClassifier
-from evaluator import ModelEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,6 @@ class SpamClassifierPipeline:
         self.data_loader = DataLoader(self.config)
         self.embedding_generator = EmbeddingGenerator(self.config)
         self.classifier = None
-        self.evaluator = ModelEvaluator(self.config)
         
     def train(self) -> None:
         """Huấn luyện mô hình với dữ liệu."""
@@ -73,37 +71,14 @@ class SpamClassifierPipeline:
         
         # Chia embeddings và metadata
         train_embeddings = embeddings[train_indices]
-        test_embeddings = embeddings[test_indices]
         train_metadata = [metadata[i] for i in train_indices]
-        test_metadata = [metadata[i] for i in test_indices]
         
         logger.info(f"Kích thước train: {len(train_embeddings)}")
-        logger.info(f"Kích thước test: {len(test_embeddings)}")
         logger.info(f"Phân bố nhãn train: {np.bincount(y_train)}")
-        logger.info(f"Phân bố nhãn test: {np.bincount(y_test)}")
         
         # Tạo và huấn luyện classifier
         self.classifier = KNNClassifier(train_embeddings.shape[1])
         self.classifier.fit(train_embeddings, train_metadata)
-        
-        # Đánh giá mô hình
-        logger.info("Đang đánh giá độ chính xác trên test set...")
-        accuracy_results, error_results = self.evaluator.evaluate_accuracy(
-            test_embeddings, test_metadata, self.classifier
-        )
-        
-        # Hiển thị kết quả
-        logger.info("\n" + "="*50)
-        logger.info("KẾT QUẢ ĐỘ CHÍNH XÁC")
-        logger.info("="*50)
-        for k, accuracy in accuracy_results.items():
-            logger.info(f"Top-{k} accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
-        logger.info("="*50)
-        
-        # Lưu phân tích lỗi
-        self.evaluator.save_error_analysis(
-            accuracy_results, error_results, len(test_embeddings)
-        )
     
     def predict(self, text: str, k: int = None) -> Dict[str, Any]:
         """

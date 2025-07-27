@@ -1,5 +1,5 @@
 """
-File chạy chính cho spam classifier.
+File chạy chính cho pipeline phân loại email spam.
 """
 import numpy as np
 import time
@@ -9,91 +9,172 @@ import logging
 import os
 import argparse
 from spam_classifier import SpamClassifierPipeline
+from knn_classifier import KNNClassifier
 from config import SpamClassifierConfig
 from email_handler import EmailHandler
+from evaluator import ModelEvaluator
 
 # Thiết lập logging
 log_dir = 'logs'
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s: %(message)s',
     handlers=[
         logging.FileHandler(os.path.join(log_dir, 'spam_classifier.log')),
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger(__name__)
+logger = logging.info
 
-# Biến kiểm soát thoát
+# Biến kiểm soát thoát an toàn
 running = True
 
-def signal_handler(sig, frame):
-    """Xử lý tín hiệu Ctrl+C để thoát an toàn."""
+
+def signal_handler(sig: int, frame: str) -> None:
+    """
+    Xử lý tín hiệu Ctrl+C để thoát chương trình an toàn.
+
+    Args:
+        sig: ID của tín hiệu.
+        frame: Frame hiện tại.
+    """
     global running
     running = False
-    logger.info("Nhận tín hiệu thoát. Đang dừng chương trình một cách an toàn...")
+    logger("Nhận tín hiệu Ctrl+C. Đang dừng chương trình an toàn...")
+
+
+def prepare_evaluation_data(evaluator: ModelEvaluator, config: SpamClassifierConfig) -> tuple:
+    """
+    Tải và chuẩn bị dữ liệu cho đánh giá mô hình.
+
+    Args:
+        evaluator: Đối tượng ModelEvaluator để tải dữ liệu và tạo embedding.
+        config: Đối tượng cấu hình chứa thông tin dataset và mô hình.
+
+    Returns:
+        Tuple chứa (test_embeddings, test_metadata) cho đánh giá.
+    """
+    # Tải dữ liệu
+    logger("Đang tải dữ liệu để đánh giá...")
+    messages, labels = evaluator.data_loader.load_data()
+
+    # Tạo embedding
+    logger(f"Đang tạo embedding cho {len(messages)} tin nhắn...")
+    embeddings = evaluator.embedding_generator.generate_embeddings(messages)
+
+    # Chia dữ liệu thành tập train/test
+    logger("Đang chia dữ liệu thành tập train và test...")
+    train_idx, test_idx, _, _ = evaluator.data_loader.split_data(messages, labels)
+
+    # Chuẩn bị embedding cho tập test
+    test_embeddings = embeddings[test_idx]
+
+    # Tạo metadata cho tập test
+    logger("Đang tạo metadata cho tập test...")
+    encoded_labels = evaluator.data_loader.label_encoder.transform(labels)
+    metadata = evaluator.data_loader.create_metadata(messages, labels, encoded_labels)
+    test_metadata = [metadata[i] for i in test_idx]
+
+    return test_embeddings, test_metadata
+
+
+def evaluate_model(
+    evaluator: ModelEvaluator,
+    classifier: KNNClassifier,
+    test_embeddings: np.ndarray,
+    test_metadata: list,
+    k_values: list
+) -> None:
+    """
+    Chạy đánh giá mô hình và tạo biểu đồ trực quan.
+
+    Args:
+        evaluator: Đối tượng ModelEvaluator để thực hiện đánh giá.
+        classifier: Đối tượng KNNClassifier đã được huấn luyện.
+        test_embeddings: Embedding của tập test.
+        test_metadata: Metadata của tập test.
+        k_values: Danh sách giá trị k cho đánh giá KNN.
+    """
+    logger(f"Đang đánh giá mô hình với các giá trị k: {k_values}")
+    evaluator.evaluate_accuracy(test_embeddings, test_metadata, classifier, k_values)
+    logger("Đánh giá hoàn tất. Kết quả và biểu đồ đã được lưu.")
+
 
 def main():
-    """Hàm chính để chạy spam classifier."""
-    parser = argparse.ArgumentParser(description="Run spam classifier pipeline.")
-    parser.add_argument('--regenerate', action='store_true', default=False,
-                        help='Set to regenerate embeddings (default: False)')
-    parser.add_argument('--run-email-classifier', action='store_true', default=False,
-                        help='Run email classifier mode with Gmail API (default: False)')
-    parser.add_argument('--merge-emails', action='store_true', default=False,
-                        help='Merge emails from inbox/spam folders into dataset (default: False)')
+    """
+    Hàm chính để chạy pipeline phân loại email spam.
+    """
+    parser = argparse.ArgumentParser(description="Chạy pipeline phân loại email spam.")
+    parser.add_argument('--regenerate', action='store_true',
+                        help='Tái tạo embedding (mặc định: False)')
+    parser.add_argument('--run-email-classifier', action='store_true',
+                        help='Chạy chế độ phân loại email qua Gmail API (mặc định: False)')
+    parser.add_argument('--merge-emails', action='store_true',
+                        help='Gộp email từ thư mục inbox/spam vào dataset (mặc định: False)')
+    parser.add_argument('--evaluate', action='store_true',
+                        help='Chạy đánh giá mô hình với biểu đồ trực quan (mặc định: False)')
+    parser.add_argument('--k-values', type=str,
+                        help='Danh sách các giá trị k cho đánh giá, phân tách bằng dấu phẩy (ví dụ: "1,3,5")')
     args = parser.parse_args()
-    
+
     try:
         # Khởi tạo cấu hình
         config = SpamClassifierConfig()
         config.regenerate_embeddings = args.regenerate
-        logger.info(f"Regenerate embeddings: {config.regenerate_embeddings}")
-        
+        if args.k_values:
+            config.k_values = [int(k) for k in args.k_values.split(',')]
+        logger(f"Tái tạo embedding: {config.regenerate_embeddings}")
+        logger(f"Giá trị k: {config.k_values}")
+
         # Tạo pipeline
+        logger("Đang khởi tạo pipeline...")
         pipeline = SpamClassifierPipeline(config)
-        logger.info("Khởi tạo pipeline thành công")
-        
-        # Gộp email từ thư mục inbox/spam nếu có flag
+
+        # Gộp email nếu được yêu cầu
         if args.merge_emails:
-            logger.info("Gộp email từ thư mục inbox/spam vào dataset")
+            logger("Đang gộp email từ thư mục inbox/spam vào dataset...")
             pipeline.data_loader.merge_emails_to_dataset()
-            
-            # Kiểm tra số dòng dataset so với embeddings cache
+
+            # Kiểm tra tính nhất quán giữa dataset và cache embedding
             dataset_path = config.dataset_path
-            embeddings_file = os.path.join('cache', 'embeddings', f"embeddings_{config.model_name.replace('/', '_')}.npy")
+            embeddings_file = os.path.join('cache', 'embeddings',
+                                          f"embeddings_{config.model_name.replace('/', '_')}.npy")
             if os.path.exists(dataset_path) and os.path.exists(embeddings_file):
-                try:
-                    df = pd.read_csv(dataset_path)
-                    dataset_count = len(df)
-                    embeddings = np.load(embeddings_file)
-                    cache_count = embeddings.shape[0]
-                    if cache_count != dataset_count and not args.regenerate:
-                        logger.warning(
-                            f"CẢNH BÁO: Số dòng trong dataset ({dataset_count}) không khớp với embeddings cache ({cache_count}). "
-                            "Vui lòng chạy lại với --regenerate để cập nhật embeddings trước khi tiếp tục."
-                        )
-                        return  # Dừng chương trình tại đây
-                    elif cache_count != dataset_count and args.regenerate:
-                        logger.info(f"Số dòng không khớp, sẽ regenerate embeddings...")
-                except Exception as e:
-                    logger.error(f"Lỗi khi kiểm tra dataset hoặc embeddings cache: {str(e)}")
-                    raise
-        
-        # Huấn luyện mô hình (chỉ chạy một lần)
-        logger.info("Bắt đầu quá trình huấn luyện")
+                df = pd.read_csv(dataset_path)
+                dataset_count = len(df)
+                embeddings = np.load(embeddings_file)
+                cache_count = embeddings.shape[0]
+                if cache_count != dataset_count and not args.regenerate:
+                    logger(
+                        f"CẢNH BÁO: Số dòng trong dataset ({dataset_count}) không khớp với cache embedding ({cache_count}). "
+                        "Chạy lại với --regenerate để cập nhật embedding."
+                    )
+                    return
+                elif cache_count != dataset_count and args.regenerate:
+                    logger("Phát hiện số dòng không khớp. Đang tái tạo embedding...")
+
+        # Huấn luyện mô hình
+        logger("Đang bắt đầu huấn luyện mô hình...")
         pipeline.train()
-        
+
+        # Đánh giá mô hình nếu được yêu cầu
+        if args.evaluate:
+            logger("Đang bắt đầu đánh giá mô hình...")
+            evaluator = ModelEvaluator(config)
+            test_embeddings, test_metadata = prepare_evaluation_data(evaluator, config)
+            evaluate_model(evaluator, pipeline.classifier, test_embeddings, test_metadata, config.k_values)
+            return
+
+        # Chạy phân loại email nếu được yêu cầu
         if args.run_email_classifier:
-            # Mode classify email qua Gmail API chạy nền
-            logger.info("Bắt đầu mode classify email qua Gmail API ở chế độ nền")
+            logger("Đang khởi động chế độ phân loại email qua Gmail API ở chế độ nền...")
             handler = EmailHandler(pipeline, config)
             last_page_token = None
-            
-            # Đăng ký handler cho tín hiệu Ctrl+C
+
+            # Đăng ký trình xử lý tín hiệu Ctrl+C
             signal.signal(signal.SIGINT, signal_handler)
-            
+
             while running:
                 try:
                     # Lấy danh sách email mới
@@ -105,34 +186,37 @@ def main():
                         pageToken=last_page_token
                     ).execute()
                     messages = results.get('messages', [])
-                    
+
                     if messages:
-                        logger.info(f"Phát hiện {len(messages)} email mới. Bắt đầu xử lý...")
+                        logger(f"Phát hiện {len(messages)} email mới. Đang xử lý...")
                         handler.process_emails(max_results=10)
                         last_page_token = results.get('nextPageToken')
                     else:
-                        logger.info("Không có email mới. Chờ 30 giây...")
-                    
-                    time.sleep(30)  # Delay 30 giây trước khi kiểm tra lại
+                        logger("Không có email mới. Chờ 30 giây...")
+
+                    time.sleep(30)
                 except Exception as e:
-                    logger.error(f"Lỗi khi xử lý email: {str(e)}")
-                    time.sleep(60)  # Delay lâu hơn nếu lỗi để tránh spam API
-            
-            logger.info("Chương trình đã dừng an toàn.")
-        else:
-            # Test với các ví dụ khác nhau
-            test_examples = [
-                "I am actually thinking a way of doing something useful",
-                "FREE!! Click here to win $1000 NOW! Limited time offer!"
-            ]
-            logger.info("Đang test pipeline với các ví dụ khác nhau")
-            for i, example in enumerate(test_examples, 1):
-                logger.info(f"Ví dụ {i}: {example}")
-                result = pipeline.predict(example, k=3)
-                logger.info(f"Dự đoán cho ví dụ {i}: {result['prediction']}")
+                    logger(f"Lỗi khi xử lý email: {str(e)}")
+                    time.sleep(60)
+
+            logger("Chương trình đã dừng an toàn.")
+            return
+
+        # Kiểm tra với các ví dụ mẫu
+        logger("Đang kiểm tra pipeline với các ví dụ mẫu...")
+        test_examples = [
+            "I am actually thinking a way of doing something useful",
+            "FREE!! Click here to win $1000 NOW! Limited time offer!"
+        ]
+        for i, example in enumerate(test_examples, 1):
+            logger(f"Ví dụ {i}: {example}")
+            result = pipeline.predict(example, k=3)
+            logger(f"Dự đoán cho ví dụ {i}: {result['prediction']}")
+
     except Exception as e:
-        logger.error(f"Lỗi trong quá trình chạy main: {str(e)}")
+        logger(f"Lỗi trong quá trình chạy chính: {str(e)}")
         raise
+
 
 if __name__ == "__main__":
     main()
