@@ -116,6 +116,8 @@ def main():
                         help='Chạy đánh giá mô hình với biểu đồ trực quan (mặc định: False)')
     parser.add_argument('--k-values', type=str,
                         help='Danh sách các giá trị k cho đánh giá, phân tách bằng dấu phẩy (ví dụ: "1,3,5")')
+    parser.add_argument('--classifier', type=str, default='knn', choices=['knn', 'tfidf'],
+                        help='Chọn bộ phân loại: knn (mặc định) hoặc tfidf')
     args = parser.parse_args()
 
     try:
@@ -129,7 +131,7 @@ def main():
 
         # Tạo pipeline
         logger("Đang khởi tạo pipeline...")
-        pipeline = SpamClassifierPipeline(config)
+        pipeline = SpamClassifierPipeline(config, classifier_type=args.classifier)
 
         # Gộp email nếu được yêu cầu
         if args.merge_emails:
