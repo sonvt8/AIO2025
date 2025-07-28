@@ -18,6 +18,7 @@ This repository contains a command-line-based spam email classification applicat
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 - [Future Development](#future-development)
+- [Recent Updates (v2.0)](#recent-updates-v20)
 
 ---
 
@@ -111,94 +112,6 @@ Run the application with the `--run-email-classifier` flag for the first time. A
 
 ## Usage
 
-The application is controlled via command-line arguments. Use the `--help` flag to view options:
-```bash
-python main.py --help
-```
-
-### Command Line Arguments
-
-- `--regenerate`: Regenerate embeddings (default: False).
-- `--run-email-classifier`: Run email classification with Gmail API (default: False).
-- `--merge-emails`: Merge local inbox/spam into dataset (default: False).
-- `--evaluate`: Evaluate model performance with visualization (default: False).
-- `--k-values`: Custom k values (e.g., `"1,3,5"`).
-
-### Examples
-
-**Evaluate the Model**:
-```bash
-python main.py --evaluate --regenerate
-```
-
-**Merge Emails**:
-```bash
-python main.py --merge-emails
-```
-
-**Run Email Classifier**:
-```bash
-python main.py --run-email-classifier
-```
-
-**Custom Evaluation with k=1,3,7**:
-```bash
-python main.py --evaluate --k-values "1,3,7"
-```
-
----
-
-## File Structure
-
-```
-project_spam_mails/
-├── cache/
-│   ├── input/           # credentials.json, token.json
-│   ├── output/          # plots and evaluation results
-│   ├── embeddings/      # precomputed vectors
-│   └── models/          # transformers & tokenizer
-├── dataset/             # 2cls_spam_text_cls.csv
-├── inbox/               # local ham emails
-├── spam/                # local spam emails
-├── logs/                # log files
-├── config.py
-├── data_loader.py
-├── email_handler.py
-├── embedding_generator.py
-├── evaluator.py
-├── knn_classifier.py
-├── main.py
-├── spam_classifier.py
-└── README.md
-```
-
----
-
-## Troubleshooting
-
-- **Seaborn style error**: Update Matplotlib or switch to `plt.style.use('default')`.
-- **CSV not found**: Ensure `dataset/2cls_spam_text_cls.csv` exists or run `--merge-emails`.
-- **Auth failed**: Check credentials.json and regenerate token.
-- **Embedding mismatch**: Use `--regenerate` after dataset changes.
-
----
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-## Future Development
-
-This version will evolve into a Streamlit-based interactive interface with visualization and real-time classification. Stay tuned for tags and updates on GitHub.
-
-
----
-
-
-## Usage
-
 The spam email classification application is controlled via command-line arguments executed through main.py. To ensure a smooth experience, follow the steps below in the recommended order. These steps account for the application's dependency on precomputed embeddings and VectorDatabase initialization to avoid errors such as missing embeddings or dataset mismatches.
 
 ### Step-by-Step Usage Instructions
@@ -232,7 +145,8 @@ python main.py --evaluate --k-values "1,3,7"
 ```
 
 **What happens**: The application loads the precomputed embeddings, splits the dataset into train/test sets, evaluates the model for each k-value, and saves results (including error analysis) in `cache/output/error_analysis.json` and visualizations in `cache/output/evaluation_summary.png`.  
-**Why**: This step helps assess the model's effectiveness without regenerating embeddings, leveraging the cache from the first run.
+**Why**: This step helps assess the model's effectiveness without regenerating embeddings, leveraging the cache from the first run.  
+**Recommendation**: Do not use `--regenerate` unless the dataset changes (e.g., after merging emails), as it wastes time regenerating embeddings unnecessarily.
 
 **Note**: If the dataset changes (e.g., after merging emails), use `--regenerate` to update embeddings:
 
@@ -251,7 +165,8 @@ python main.py --merge-emails --regenerate
 ```
 
 **What happens**: The application reads `.txt` files from `inbox/` (labeled as ham) and `spam/` (labeled as spam), removes duplicates, appends them to the dataset, and regenerates embeddings to match the updated dataset.  
-**Why**: Merging emails updates the dataset, but the embeddings cache must be refreshed to avoid a mismatch error (dataset size not matching cached embeddings).
+**Why**: Merging emails updates the dataset, but the embeddings cache must be refreshed to avoid a mismatch error (dataset size not matching cached embeddings).  
+**Recommendation**: Always use `--regenerate` with `--merge-emails` to avoid embedding mismatch errors in subsequent runs. If omitted, the application will warn via logs, but combining them saves debugging time.
 
 > Always use `--regenerate` with `--merge-emails` to avoid errors due to dataset-embedding inconsistency. Check `logs/spam_classifier.log` for merge statistics.
 
@@ -266,7 +181,8 @@ python main.py --run-email-classifier
 ```
 
 **What happens**: The application authenticates with Gmail API, fetches up to 10 unread emails every 30 seconds, classifies them as spam or ham, applies the appropriate label, marks them as read, and saves them locally in `inbox/` or `spam/` as `.txt` files.  
-**Why**: This enables real-time email processing, but it relies on the precomputed embeddings and trained classifier from the initial run.
+**Why**: This enables real-time email processing, but it relies on the precomputed embeddings and trained classifier from the initial run.  
+**Recommendation**: Only run after training embeddings (first step), as missing embeddings will cause errors. Do not use `--regenerate` unless you want to update the model with new data.
 
 > Ensure `cache/input/credentials.json` is present and authentication is complete. If embeddings are missing, run `python main.py` first.
 
@@ -283,7 +199,8 @@ python main.py --regenerate
 ```
 
 **What happens**: The application deletes the existing embeddings cache and generates new ones for the current dataset.  
-**When to use**: Use this flag after dataset changes or if you encounter errors about embedding mismatches.
+**Why**: To synchronize embeddings with the updated dataset, avoiding mismatch errors.  
+**Recommendation**: Use only when the dataset changes; avoid overuse as it can be time-consuming (depending on dataset size, it may take minutes to hours). Combine with other commands like `--evaluate` or `--merge-emails` if needed.
 
 ---
 
@@ -374,6 +291,8 @@ If misclassified:
 python main.py --merge-emails --regenerate
 ```
 
+**Note**: Re-run merge only when you want to reuse correctly labeled emails to supplement the dataset and retrain the model to regenerate embeddings. Avoid unnecessary re-runs as it wastes time regenerating embeddings.
+
 ---
 
 #### Monitor and Restart Classification
@@ -406,3 +325,67 @@ Example log:
 - **Token expired**: Delete `token.json` and re-auth.
 - **No emails processed**: Ensure emails are unread in Gmail.
 - **Missing labels**: Labels will be auto-created.
+
+---
+
+## File Structure
+
+```
+project_spam_mails/
+├── cache/
+│   ├── input/           # credentials.json, token.json
+│   ├── output/          # plots and evaluation results
+│   ├── embeddings/      # precomputed vectors
+│   └── models/          # transformers & tokenizer
+├── dataset/             # 2cls_spam_text_cls.csv
+├── inbox/               # local ham emails
+├── spam/                # local spam emails
+├── logs/                # log files
+├── config.py
+├── data_loader.py
+├── email_handler.py
+├── embedding_generator.py
+├── evaluator.py
+├── knn_classifier.py
+├── main.py
+├── spam_classifier.py
+├── tfidf_classifier.py
+└── README.md
+```
+
+---
+
+## Troubleshooting
+
+- **Seaborn style error**: Update Matplotlib or switch to `plt.style.use('default')`.
+- **CSV not found**: Ensure `dataset/2cls_spam_text_cls.csv` exists or run `--merge-emails`.
+- **Auth failed**: Check credentials.json and regenerate token.
+- **Embedding mismatch**: Use `--regenerate` after dataset changes.
+
+---
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+## Future Development
+
+This version will evolve into a Streamlit-based interactive interface with visualization and real-time classification. Stay tuned for tags and updates on GitHub.
+
+---
+
+## Recent Updates (v2.0)
+
+- **TF-IDF Integration**: Added TF-IDF classifier alongside KNN for benchmarking. Use `--evaluate` to compare performance (accuracy, precision, recall, F1) between TF-IDF (baseline) and best KNN (k selected by max F1).
+- **Enhanced Visualization**: Updated evaluation plots to 5 rows:
+  - Row 1: Lineplot of KNN metrics (k=1,3,5).
+  - Row 2: Heatmaps of KNN confusion matrices per k.
+  - Row 3: Barplot of label distribution.
+  - Row 4: Grouped barplot comparing TF-IDF vs best KNN metrics.
+  - Row 5: Heatmap of TF-IDF confusion matrix.
+  - Improved spacing (via `height_ratios` and `hspace`) to avoid label overlap on x-axis.
+- **Performance Optimization**: Ensured single training run for KNN and TF-IDF pipelines, reusing embeddings for efficiency.
+- **Tag v2.0**: Released as `v2.0-command-line` to reflect these updates. Download from https://github.com/sonvt8/AIO2025/tags.
+```
