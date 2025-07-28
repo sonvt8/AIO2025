@@ -13,6 +13,7 @@ from knn_classifier import KNNClassifier
 from config import SpamClassifierConfig
 from email_handler import EmailHandler
 from evaluator import ModelEvaluator
+from tfidf_classifier import TFIDFClassifier  # Thêm import
 
 # Thiết lập logging
 log_dir = 'logs'
@@ -79,28 +80,6 @@ def prepare_evaluation_data(evaluator: ModelEvaluator, config: SpamClassifierCon
     return test_embeddings, test_metadata
 
 
-def evaluate_model(
-    evaluator: ModelEvaluator,
-    classifier: KNNClassifier,
-    test_embeddings: np.ndarray,
-    test_metadata: list,
-    k_values: list
-) -> None:
-    """
-    Chạy đánh giá mô hình và tạo biểu đồ trực quan.
-
-    Args:
-        evaluator: Đối tượng ModelEvaluator để thực hiện đánh giá.
-        classifier: Đối tượng KNNClassifier đã được huấn luyện.
-        test_embeddings: Embedding của tập test.
-        test_metadata: Metadata của tập test.
-        k_values: Danh sách giá trị k cho đánh giá KNN.
-    """
-    logger(f"Đang đánh giá mô hình với các giá trị k: {k_values}")
-    evaluator.evaluate_accuracy(test_embeddings, test_metadata, classifier, k_values)
-    logger("Đánh giá hoàn tất. Kết quả và biểu đồ đã được lưu.")
-
-
 def main():
     """
     Hàm chính để chạy pipeline phân loại email spam.
@@ -115,7 +94,7 @@ def main():
     parser.add_argument('--evaluate', action='store_true',
                         help='Chạy đánh giá mô hình với biểu đồ trực quan (mặc định: False)')
     parser.add_argument('--k-values', type=str,
-                        help='Danh sách các giá trị k cho đánh giá, phân tách bằng dấu phẩy (ví dụ: "1,3,5")')
+                        help='Danh sách giá trị k cho đánh giá, phân tách bằng dấu phẩy (ví dụ: "1,3,5")')
     parser.add_argument('--classifier', type=str, default='knn', choices=['knn', 'tfidf'],
                         help='Chọn bộ phân loại: knn (mặc định) hoặc tfidf')
     args = parser.parse_args()
@@ -156,7 +135,7 @@ def main():
                 elif cache_count != dataset_count and args.regenerate:
                     logger("Phát hiện số dòng không khớp. Đang tái tạo embedding...")
 
-        # Huấn luyện mô hình
+        # Huấn luyện mô hình (chỉ một lần cho pipeline chính)
         logger("Đang bắt đầu huấn luyện mô hình...")
         pipeline.train()
 
@@ -165,7 +144,12 @@ def main():
             logger("Đang bắt đầu đánh giá mô hình...")
             evaluator = ModelEvaluator(config)
             test_embeddings, test_metadata = prepare_evaluation_data(evaluator, config)
-            evaluate_model(evaluator, pipeline.classifier, test_embeddings, test_metadata, config.k_values)
+            
+            # Init TF-IDF pipeline riêng (train chỉ một lần)
+            tfidf_pipeline = SpamClassifierPipeline(config, classifier_type='tfidf')
+            tfidf_pipeline.train()
+            
+            evaluator.evaluate_accuracy(test_embeddings, test_metadata, pipeline.classifier, tfidf_pipeline.classifier, config.k_values)
             return
 
         # Chạy phân loại email nếu được yêu cầu

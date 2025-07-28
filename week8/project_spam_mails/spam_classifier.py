@@ -9,6 +9,7 @@ from config import SpamClassifierConfig
 from data_loader import DataLoader
 from embedding_generator import EmbeddingGenerator
 from knn_classifier import KNNClassifier
+from tfidf_classifier import TFIDFClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ class SpamClassifierPipeline:
         messages, labels = self.data_loader.load_data()
         
         if self.classifier_type == 'knn':
-            
             # Kiểm tra số dòng dataset so với embeddings cache
             emb_file = os.path.join(
                 'cache', 'embeddings',
@@ -104,7 +104,6 @@ class SpamClassifierPipeline:
             self.classifier.fit(train_emb, train_meta)
 
         elif self.classifier_type == 'tfidf':
-            from tfidf_classifier import TFIDFClassifier
             self.classifier = TFIDFClassifier()
             self.classifier.fit(train_msgs, train_lbls)
 
