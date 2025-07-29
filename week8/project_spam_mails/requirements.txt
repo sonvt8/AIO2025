@@ -9,6 +9,7 @@ transformers == 4.53.3
 nltk == 3.9.1
 matplotlib == 3.10.3
 seaborn == 0.13.2
+streamlit==1.36.0
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib

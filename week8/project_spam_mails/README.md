@@ -62,7 +62,7 @@ This project is part of a larger AIO2025 repository. To avoid downloading unnece
 ### Download Manually from GitHub:
 
 1. Visit https://github.com/sonvt8/AIO2025/tags.
-2. Locate the tag `v1.0-command-line` (or the tag you created).
+2. Locate the tag `v2.0-command-line`.
 3. Click on the tag name, then click **Browse code** to view the contents.
 4. Navigate to the `week8/project_spam_mails` directory.
 5. Click **Download ZIP** or use the **Code** button > **Download ZIP** to download the entire tag as a ZIP file.
