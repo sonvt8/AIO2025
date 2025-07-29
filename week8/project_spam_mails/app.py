@@ -1,6 +1,9 @@
 # app.py
 
+import os
 import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -9,6 +12,7 @@ from sklearn.manifold import TSNE
 from config import SpamClassifierConfig
 from data_loader import DataLoader
 from embedding_generator import EmbeddingGenerator
+from evaluator import ModelEvaluator
 from spam_classifier import SpamClassifierPipeline
 
 # --- Cấu hình trang và CSS tùy chỉnh ---
@@ -189,7 +193,78 @@ elif st.session_state.page == "📊 Phân tích Dữ liệu":
 # --- Trang Đánh giá Bộ phân loại (đang phát triển) ---
 elif st.session_state.page == "📈 Đánh giá Bộ phân loại":
     st.header("📈 Đánh giá Bộ phân loại")
-    st.info("Chức năng đang được phát triển…")
+
+    # Khởi tạo DataLoader, Embedding và Pipeline
+    cfg = SpamClassifierConfig()
+    loader = DataLoader(cfg)
+    messages, labels = loader.load_data()
+    emb = EmbeddingGenerator(cfg).generate_embeddings(messages)
+    train_idx, test_idx, _, _ = loader.split_data(messages, labels)
+    test_emb = emb[test_idx]
+    test_meta = []
+    encoded = loader.label_encoder.transform(labels)
+    metadata = loader.create_metadata(messages, labels, encoded)
+    for i in test_idx:
+        test_meta.append(metadata[i])
+
+    # Train hai mô hình KNN và TF-IDF
+    pipe_knn = SpamClassifierPipeline(cfg, classifier_type="knn")
+    pipe_knn.train()
+    pipe_tfidf = SpamClassifierPipeline(cfg, classifier_type="tfidf")
+    pipe_tfidf.train()
+
+    evaluator = ModelEvaluator(cfg)
+
+    # Chạy evaluate_accuracy — giả sử return combined_results, knn_errors, combined_cms
+    with st.spinner("Đang đánh giá mô hình, xin chờ…"):
+        combined_results, knn_errors, combined_cms = evaluator.evaluate_accuracy(
+            test_embeddings=test_emb,
+            test_metadata=test_meta,
+            knn_classifier=pipe_knn.classifier,
+            tfidf_classifier=pipe_tfidf.classifier,
+            k_values=cfg.k_values
+        )
+    st.success("✅ Đánh giá đã hoàn tất!")
+
+    # Lấy data từ results và cms
+    knn_results = combined_results['knn']
+    tfidf_results = combined_results['tfidf']
+    best_k = combined_results['best_k']
+    knn_best = knn_results[best_k]
+    knn_cms = combined_cms['knn']
+    tfidf_cm = combined_cms['tfidf']
+
+    # 1. Thông báo giá trị K tốt nhất và Accuracy tương ứng
+    best_acc = knn_best["accuracy"]
+    st.info(f"🔎 K tốt nhất: **k = {best_k}**, Accuracy = **{best_acc:.4f}**")
+
+    # 2. Lineplot KNN metrics
+    st.subheader("So sánh chỉ số KNN theo k")
+    fig_metrics = evaluator.plot_knn_metrics(knn_results, cfg.k_values)
+    st.pyplot(fig_metrics)
+
+    # 3. Heatmaps KNN per k (dùng columns để ngang hàng)
+    st.subheader("Confusion Matrix KNN theo k")
+    cols = st.columns(len(cfg.k_values))
+    for idx, k in enumerate(cfg.k_values):
+        with cols[idx]:
+            fig_cm = evaluator.plot_knn_confusion(knn_cms[k], k)
+            st.pyplot(fig_cm)
+
+    # 4. Barplot phân bố labels
+    st.subheader("Phân bố nhãn")
+    fig_dist = evaluator.plot_label_distribution(labels)
+    st.pyplot(fig_dist)
+
+    # 5. Grouped bar so sánh TF-IDF vs best KNN
+    st.subheader("So sánh TF-IDF vs Best KNN")
+    fig_comp = evaluator.plot_comparison(knn_best, tfidf_results, best_k)
+    st.pyplot(fig_comp)
+
+    # 6. Heatmap TF-IDF
+    st.subheader("Confusion Matrix TF-IDF")
+    fig_tfidf_cm = evaluator.plot_tfidf_confusion(tfidf_cm)
+    st.pyplot(fig_tfidf_cm)
 
 
 # --- Trang Lấy Thư (đang phát triển) ---

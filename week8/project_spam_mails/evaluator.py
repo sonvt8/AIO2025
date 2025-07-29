@@ -153,7 +153,7 @@ class ModelEvaluator:
         # Visualize
         self._visualize_results(combined_results, combined_cms, messages, labels, k_values)
         
-        return combined_results, knn_errors
+        return combined_results, knn_errors, combined_cms
     
     def save_error_analysis(self, 
                             knn_results: Dict,
@@ -302,6 +302,84 @@ class ModelEvaluator:
         plt.savefig(summary_file, dpi=300)
         logger.info(f"Đã lưu biểu đồ gộp vào: {summary_file}")
         plt.close()
+
+    def plot_knn_metrics(self, knn_results: Dict, k_values: List[int]) -> plt.Figure:
+        """Trả về fig lineplot metrics KNN theo k."""
+        fig, ax = plt.subplots(figsize=(8, 5))
+        knn_metrics_df = pd.DataFrame([
+            {'k': k, 'Metric': metric, 'Value': knn_results[k][metric]}
+            for k in k_values
+            for metric in ['accuracy', 'precision', 'recall', 'f1']
+        ])
+        sns.lineplot(data=knn_metrics_df, x='Metric', y='Value', hue='k', marker='o', ax=ax)
+        ax.set_title("So sánh các chỉ số theo từng k (KNN)")
+        ax.set_xlabel("Metric")
+        ax.set_ylabel("Score")
+        values = knn_metrics_df['Value'].values
+        mean_val = np.mean(values)
+        std_val = np.std(values)
+        ax.set_ylim(max(0.9, mean_val - 1.5 * std_val), min(1.0, mean_val + 1.5 * std_val))
+        ax.legend(title='k')
+        return fig
+
+    def plot_knn_confusion(self, cm: np.ndarray, k: int) -> plt.Figure:
+        """Trả về fig heatmap confusion matrix cho KNN tại k."""
+        fig, ax = plt.subplots(figsize=(5, 4))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='YlOrRd', cbar=False, ax=ax)
+        ax.set_title(f'Confusion Matrix KNN (k={k})')
+        ax.set_xlabel('Predicted')
+        ax.set_ylabel('Actual')
+        ax.set_xticklabels(self.data_loader.get_class_names())
+        ax.set_yticklabels(self.data_loader.get_class_names())
+        return fig
+
+    def plot_label_distribution(self, labels: List[str]) -> plt.Figure:
+        """Trả về fig barplot phân bố labels."""
+        fig, ax = plt.subplots(figsize=(6, 4))
+        df_bar = pd.DataFrame({'label': self.data_loader.get_class_names(), 
+                            'count': [sum(1 for label in labels if label == cls) 
+                                        for cls in self.data_loader.get_class_names()]})
+        sns.barplot(data=df_bar, x='label', y='count', palette='Set2', ax=ax)
+        ax.set_title("Tổng số email theo từng nhãn")
+        ax.set_xlabel("Label")
+        ax.set_ylabel("Số lượng email")
+        for p in ax.patches:
+            ax.annotate(f'{p.get_height():.0f}', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()),
+                        ha='center', va='center', xytext=(0, 5), textcoords='offset points')
+        return fig
+
+    def plot_comparison(self, knn_best: Dict, tfidf_results: Dict, best_k: int) -> plt.Figure:
+        """Trả về fig grouped bar so sánh TF-IDF vs best KNN."""
+        fig, ax = plt.subplots(figsize=(8, 5))
+        comp_df = pd.DataFrame([
+            {'Classifier': 'TF-IDF', 'Metric': m, 'Value': tfidf_results[m]} 
+            for m in ['accuracy', 'precision', 'recall', 'f1']
+        ] + [
+            {'Classifier': f'Best KNN (k={best_k})', 'Metric': m, 'Value': knn_best[m]} 
+            for m in ['accuracy', 'precision', 'recall', 'f1']
+        ])
+        sns.barplot(data=comp_df, x='Metric', y='Value', hue='Classifier', palette='Set1', ax=ax)
+        ax.set_title("So sánh TF-IDF vs Best KNN")
+        ax.set_ylabel("Score")
+        ax.legend(title='Classifier')
+        values = comp_df['Value'].values
+        mean_val = np.mean(values)
+        std_val = np.std(values)
+        ax.set_ylim(max(0.9, mean_val - 1.5 * std_val), min(1.0, mean_val + 1.5 * std_val))
+        return fig
+
+    def plot_tfidf_confusion(self, cm: np.ndarray) -> plt.Figure:
+        """Trả về fig heatmap confusion matrix cho TF-IDF."""
+        fig, ax = plt.subplots(figsize=(5, 4))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='YlOrRd', cbar=False, ax=ax)
+        ax.set_title('Confusion Matrix (TF-IDF)')
+        ax.set_xlabel('Predicted')
+        ax.set_ylabel('Actual')
+        ax.set_xticklabels(self.data_loader.get_class_names())
+        ax.set_yticklabels(self.data_loader.get_class_names())
+        return fig
+
 
 def main():
     """Hàm chính để chạy đánh giá mô hình qua command line."""

@@ -258,4 +258,8 @@ class DataLoader:
         Returns:
             Array chứa tên các lớp
         """
+        if not hasattr(self.label_encoder, 'classes_'):
+            # Tải nhãn gốc từ file CSV
+            _, labels = self.load_data()
+            self.label_encoder.fit(labels)
         return self.label_encoder.classes_
