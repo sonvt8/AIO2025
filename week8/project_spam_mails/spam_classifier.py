@@ -158,7 +158,14 @@ class SpamClassifierPipeline:
             label_counts = {
                 label: labels.count(label) for label in set(labels)
             }
-
+            
+            
+            return {
+                'prediction': prediction,
+                'neighbors': neighbors,
+                'label_distribution': label_counts
+            }
+            
         if self.classifier_type == 'tfidf':
             return self.classifier.predict(pre_text, return_proba=True)
 
