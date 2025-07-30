@@ -14,6 +14,8 @@ from data_loader import DataLoader
 from embedding_generator import EmbeddingGenerator
 from evaluator import ModelEvaluator
 from spam_classifier import SpamClassifierPipeline
+from email_handler import authenticate_gmail_api, EmailHandler
+
 
 # --- Cấu hình trang và CSS tùy chỉnh ---
 st.set_page_config(page_title="Bảng điều khiển Spam Mail", layout="centered")
@@ -121,6 +123,18 @@ footer {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# --- Xác thực Gmail API ở đầu script (chạy một lần, cache vào session_state) ---
+config = SpamClassifierConfig()
+
+if 'gmail_service' not in st.session_state:
+    try:
+        with st.spinner("Đang xác thực với Google API..."):
+            service = authenticate_gmail_api(config)
+            st.session_state['gmail_service'] = service
+        st.success("Xác thực thành công! Sẵn sàng fetch email từ Gmail.")
+    except Exception as e:
+        st.error(f"Xác thực thất bại: {str(e)}. Vui lòng kiểm tra credentials.json và chạy lại app.")
 
 # --- Tải và cache pipeline theo type và tái sử dụng ---
 @st.cache_resource
@@ -264,7 +278,7 @@ elif st.session_state.page == "📊 Phân tích Dữ liệu":
     st.plotly_chart(fig2, use_container_width=True)
 
 
-# --- Trang Đánh giá Bộ phân loại (đang phát triển) ---
+# --- Trang Đánh giá Bộ phân loại ---
 elif st.session_state.page == "📈 Đánh giá Bộ phân loại":
     st.header("📈 Đánh giá Bộ phân loại")
 
@@ -342,14 +356,20 @@ elif st.session_state.page == "📈 Đánh giá Bộ phân loại":
 
 
 # --- Trang Lấy Thư (đang phát triển) ---
+elif st.session_state.page == "📈 Đánh giá Bộ phân loại":
+    st.header("📈 Đánh giá Bộ phân loại")
+
+    # Khởi tạo và chạy evaluate (giữ nguyên code gốc)
+
+# --- Trang Lấy Thư (Cập nhật với fetch thực tế) ---
 elif st.session_state.page == "✉️ Lấy Thư":
     st.header("✉️ Lấy Thư từ Gmail")
 
-    # Load pipelines riêng biệt
+    # Load pipelines riêng biệt (giữ nguyên)
     knn_pipeline = load_knn_pipeline()
     tfidf_pipeline = load_tfidf_pipeline()
 
-    # Selectbox chọn classifier (mặc định KNN để tương thích cũ)
+    # Selectbox chọn classifier (giữ nguyên)
     if 'selected_classifier' not in st.session_state:
         st.session_state['selected_classifier'] = "KNN (FAISS - Semantic Similarity)"
     selected_classifier = st.selectbox(
@@ -358,47 +378,41 @@ elif st.session_state.page == "✉️ Lấy Thư":
         index=0 if st.session_state['selected_classifier'] == "KNN (FAISS - Semantic Similarity)" else 1,
         key='classifier_select'
     )
-    st.session_state['selected_classifier'] = selected_classifier  # Lưu trạng thái để giữ khi rerun
+    st.session_state['selected_classifier'] = selected_classifier
 
-    # (Tùy chọn) Thêm expander giải thích ngắn gọn cho UX tốt hơn
+    # Expander giải thích (giữ nguyên)
     with st.expander("Thông tin về phương pháp phân loại"):
         st.markdown("""
         - **KNN (FAISS - Semantic Similarity)**: Phân loại dựa trên độ tương đồng ngữ nghĩa sử dụng embeddings và vector database (chậm hơn nhưng chính xác cao với ngữ cảnh phức tạp).
         - **TF-IDF (Term Frequency)**: Phân loại dựa trên tần suất từ khóa (nhanh hơn, phù hợp với dữ liệu văn bản đơn giản).
         """)
 
+    # Button fetch
     if st.button("🔄 Fetch Emails Mới", use_container_width=True):
-        with st.spinner(f"Đang fetch và phân loại emails bằng {selected_classifier}..."):
+        service = st.session_state.get('gmail_service')
+        if service:
             # Chọn pipeline dựa trên lựa chọn
             classifier_pipeline = knn_pipeline if "KNN" in selected_classifier else tfidf_pipeline
 
-            # --- GIẢ LẬP DỮ LIỆU ---
-            raw_emails = [
-                {"id": "new_1", "body": "Hello, this is a friendly reminder about our meeting tomorrow."},
-                {"id": "new_2", "body": "URGENT: Your account has been compromised! Click here to secure it NOW!"},
-                {"id": "new_3", "body": "Check out our latest newsletter for exciting updates."},
-                {"id": "new_4", "body": "EXCLUSIVE OFFER just for you! Win a free iPhone 15, limited time only."},
-            ]
-            # --- KẾT THÚC GIẢ LẬP ---
+            # Khởi tạo handler với pipeline đã chọn (service đã có từ session_state)
+            handler = EmailHandler(classifier_pipeline, config)
+            handler.service = service  # Override service từ session_state để tránh authenticate lại
 
-            # 2. Phân loại và lưu vào session_state
-            st.session_state['inbox_emails'] = []
-            st.session_state['spam_emails'] = []
-
-            for email in raw_emails:
-                # Lấy dictionary kết quả từ pipeline
-                result = classifier_pipeline.predict(email['body'])
-                # Lấy giá trị dự đoán từ key 'prediction'
-                prediction = result['prediction'] 
+            with st.spinner(f"Đang fetch, phân loại, apply label, và lưu emails bằng {selected_classifier}..."):
+                processed_emails = handler.process_emails(max_results=10)
                 
-                if prediction == 'ham':
-                    st.session_state['inbox_emails'].append(email)
+                if processed_emails:
+                    # Reset và cập nhật session_state từ kết quả processed
+                    st.session_state['inbox_emails'] = [email for email in processed_emails if email['prediction'] == 'ham']
+                    st.session_state['spam_emails'] = [email for email in processed_emails if email['prediction'] == 'spam']
+                    st.success(f"Đã xử lý {len(processed_emails)} emails! Đã apply label, mark as read, và lưu local.")
                 else:
-                    st.session_state['spam_emails'].append(email)
-            
-            st.success(f"Đã lấy và phân loại {len(raw_emails)} emails bằng {selected_classifier}!")
-            # Reset email đang được chọn để tránh hiển thị email cũ
-            st.session_state['selected_email'] = None
+                    st.info("Không có email mới.")
+                
+                # Reset email đang chọn
+                st.session_state['selected_email'] = None
+        else:
+            st.warning("Chưa xác thực Gmail API. Vui lòng reload app và thử lại.")
 
     # Khởi tạo session_state nếu chưa có (giữ nguyên)
     if 'inbox_emails' not in st.session_state:
@@ -410,7 +424,7 @@ elif st.session_state.page == "✉️ Lấy Thư":
 
     col_left, col_middle, col_right = st.columns([1, 3, 1])
 
-    # --- Cột Inbox (Bên trái) --- (giữ nguyên)
+    # --- Cột Inbox (Bên trái) --- (giữ nguyên, nhưng dùng 'id' và 'body')
     with col_left:
         st.markdown('<div class="folder-box">', unsafe_allow_html=True)
         inbox_count = len(st.session_state.inbox_emails)
@@ -457,6 +471,5 @@ elif st.session_state.page == "✉️ Lấy Thư":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-
-# --- Footer ---
+# --- Footer --- (giữ nguyên)
 st.markdown("<footer>Được xây dựng với Streamlit | Vận hành bởi pipeline AI của bạn.</footer>", unsafe_allow_html=True)
