@@ -122,20 +122,20 @@ footer {
 </style>
 """, unsafe_allow_html=True)
 
-
-# --- Tải và cache pipeline để tái sử dụng ---
+# --- Tải và cache pipeline theo type và tái sử dụng ---
 @st.cache_resource
-def load_pipeline():
-    """
-    Khởi tạo và train pipeline phân loại spam.
-    Kết quả được cache để không train lại mỗi lần rerun.
-    """
+def load_knn_pipeline():
     cfg = SpamClassifierConfig()
-    pipeline = SpamClassifierPipeline(cfg)
+    pipeline = SpamClassifierPipeline(cfg, classifier_type="knn")
     pipeline.train()
     return pipeline
 
-pipeline = load_pipeline()
+@st.cache_resource
+def load_tfidf_pipeline():
+    cfg = SpamClassifierConfig()
+    pipeline = SpamClassifierPipeline(cfg, classifier_type="tfidf")
+    pipeline.train()
+    return pipeline
 
 
 # --- Tải dữ liệu mẫu vào session_state ---
@@ -345,16 +345,33 @@ elif st.session_state.page == "📈 Đánh giá Bộ phân loại":
 elif st.session_state.page == "✉️ Lấy Thư":
     st.header("✉️ Lấy Thư từ Gmail")
 
-    # (Tùy chọn) Thêm logic xác thực ở đây nếu chưa có
-    # from gmail_client import get_gmail_service
-    # service = get_gmail_service() # Hàm này xử lý OAuth và trả về service object
+    # Load pipelines riêng biệt
+    knn_pipeline = load_knn_pipeline()
+    tfidf_pipeline = load_tfidf_pipeline()
+
+    # Selectbox chọn classifier (mặc định KNN để tương thích cũ)
+    if 'selected_classifier' not in st.session_state:
+        st.session_state['selected_classifier'] = "KNN (FAISS - Semantic Similarity)"
+    selected_classifier = st.selectbox(
+        "Chọn phương pháp phân loại:",
+        ["KNN (FAISS - Semantic Similarity)", "TF-IDF (Term Frequency)"],
+        index=0 if st.session_state['selected_classifier'] == "KNN (FAISS - Semantic Similarity)" else 1,
+        key='classifier_select'
+    )
+    st.session_state['selected_classifier'] = selected_classifier  # Lưu trạng thái để giữ khi rerun
+
+    # (Tùy chọn) Thêm expander giải thích ngắn gọn cho UX tốt hơn
+    with st.expander("Thông tin về phương pháp phân loại"):
+        st.markdown("""
+        - **KNN (FAISS - Semantic Similarity)**: Phân loại dựa trên độ tương đồng ngữ nghĩa sử dụng embeddings và vector database (chậm hơn nhưng chính xác cao với ngữ cảnh phức tạp).
+        - **TF-IDF (Term Frequency)**: Phân loại dựa trên tần suất từ khóa (nhanh hơn, phù hợp với dữ liệu văn bản đơn giản).
+        """)
 
     if st.button("🔄 Fetch Emails Mới", use_container_width=True):
-        with st.spinner("Đang fetch và phân loại emails..."):
-            # 1. Fetch emails (giả sử bạn có hàm này)
-            # from gmail_client import fetch_raw_emails
-            # raw_emails = fetch_raw_emails(service, max_results=20)
-            
+        with st.spinner(f"Đang fetch và phân loại emails bằng {selected_classifier}..."):
+            # Chọn pipeline dựa trên lựa chọn
+            classifier_pipeline = knn_pipeline if "KNN" in selected_classifier else tfidf_pipeline
+
             # --- GIẢ LẬP DỮ LIỆU ---
             raw_emails = [
                 {"id": "new_1", "body": "Hello, this is a friendly reminder about our meeting tomorrow."},
@@ -370,7 +387,7 @@ elif st.session_state.page == "✉️ Lấy Thư":
 
             for email in raw_emails:
                 # Lấy dictionary kết quả từ pipeline
-                result = pipeline.predict(email['body'])
+                result = classifier_pipeline.predict(email['body'])
                 # Lấy giá trị dự đoán từ key 'prediction'
                 prediction = result['prediction'] 
                 
@@ -379,12 +396,11 @@ elif st.session_state.page == "✉️ Lấy Thư":
                 else:
                     st.session_state['spam_emails'].append(email)
             
-            st.success(f"Đã lấy và phân loại {len(raw_emails)} emails!")
+            st.success(f"Đã lấy và phân loại {len(raw_emails)} emails bằng {selected_classifier}!")
             # Reset email đang được chọn để tránh hiển thị email cũ
             st.session_state['selected_email'] = None
 
-
-    # Khởi tạo session_state nếu chưa có
+    # Khởi tạo session_state nếu chưa có (giữ nguyên)
     if 'inbox_emails' not in st.session_state:
         st.session_state['inbox_emails'] = []
     if 'spam_emails' not in st.session_state:
@@ -394,21 +410,19 @@ elif st.session_state.page == "✉️ Lấy Thư":
 
     col_left, col_middle, col_right = st.columns([1, 3, 1])
 
-    # --- Cột Inbox (Bên trái) ---
+    # --- Cột Inbox (Bên trái) --- (giữ nguyên)
     with col_left:
         st.markdown('<div class="folder-box">', unsafe_allow_html=True)
         inbox_count = len(st.session_state.inbox_emails)
         st.markdown(f'<div class="folder-title">📥 Inbox <span class="folder-count">{inbox_count}</span></div>', unsafe_allow_html=True)
         for email in st.session_state.inbox_emails:
-            # Sử dụng snippet hoặc ID để hiển thị trên nút
             if st.button(email['id'], key=f"inbox_{email['id']}", use_container_width=True):
                 st.session_state['selected_email'] = {"body": email['body'], "from": "Inbox"}
-                st.rerun() # Rerun để cập nhật ngay lập tức cột giữa
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # --- Cột Content (Giữa) --- (giữ nguyên)
     with col_middle:
-        # Nội dung sẽ được xây dựng dưới dạng một chuỗi HTML
-        # để đảm bảo nó nằm gọn bên trong container.
         content_html = ""
         if st.session_state['selected_email'] is None:
             content_html = """
@@ -420,13 +434,9 @@ elif st.session_state.page == "✉️ Lấy Thư":
             """
         else:
             selected = st.session_state['selected_email']
-            # Escape HTML để tránh lỗi hiển thị hoặc XSS
             from html import escape
-            
-            # Xây dựng nội dung HTML hoàn chỉnh trong một chuỗi
             body_content = escape(selected.get('body', 'N/A')).replace('\n', '<br>')
             from_folder = escape(selected.get('from', 'N/A'))
-
             content_html = f"""
             <div class="content-container">
                 <p><b>From Folder:</b> {from_folder}</p>
@@ -434,11 +444,9 @@ elif st.session_state.page == "✉️ Lấy Thư":
                 <p>{body_content}</p>
             </div>
             """
-        
-        # Render toàn bộ khối HTML bằng một lệnh duy nhất
         st.markdown(content_html, unsafe_allow_html=True)
 
-    # --- Cột Spam (Bên phải) ---
+    # --- Cột Spam (Bên phải) --- (giữ nguyên)
     with col_right:
         st.markdown('<div class="folder-box">', unsafe_allow_html=True)
         spam_count = len(st.session_state.spam_emails)
@@ -446,7 +454,7 @@ elif st.session_state.page == "✉️ Lấy Thư":
         for email in st.session_state.spam_emails:
             if st.button(email['id'], key=f"spam_{email['id']}", use_container_width=True):
                 st.session_state['selected_email'] = {"body": email['body'], "from": "Spam"}
-                st.rerun() # Rerun để cập nhật ngay lập tức cột giữa
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 
