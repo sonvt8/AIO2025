@@ -16,6 +16,38 @@ from config import SpamClassifierConfig
 
 logger = logging.getLogger(__name__)
 
+def authenticate_gmail_api(config: SpamClassifierConfig):
+    """Authenticate với Gmail API sử dụng OAuth và trả về service object."""
+    SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
+    creds = None
+    if os.path.exists(config.token_path):
+        try:
+            creds = Credentials.from_authorized_user_file(config.token_path, SCOPES)
+        except json.JSONDecodeError as e:
+            logger.error(f"File token.json sai định dạng JSON: {str(e)}")
+            raise ValueError(f"File {config.token_path} sai định dạng JSON.")
+    
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Không thể refresh token do lỗi mạng: {str(e)}")
+                raise ConnectionError("Không thể refresh token do lỗi mạng.")
+        else:
+            if not os.path.exists(config.credentials_path):
+                raise FileNotFoundError(f"File {config.credentials_path} không tồn tại.")
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file(config.credentials_path, SCOPES)
+                creds = flow.run_local_server(port=0)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"File {config.credentials_path} sai định dạng JSON: {str(e)}")
+            except requests.exceptions.ConnectionError as e:
+                raise ConnectionError("Không thể authenticate với Gmail API do lỗi mạng.")
+        with open(config.token_path, 'w') as token:
+            token.write(creds.to_json())
+    return build('gmail', 'v1', credentials=creds)
+
 class EmailHandler:
     """Class để fetch, classify, và move emails qua Gmail API."""
     
@@ -26,15 +58,11 @@ class EmailHandler:
         Args:
             pipeline: Pipeline phân loại spam đã train.
             config: Cấu hình hệ thống.
-        
-        Raises:
-            FileNotFoundError: Nếu credentials.json không tồn tại.
-            ValueError: Nếu credentials.json sai định dạng.
         """
         self.pipeline = pipeline
         self.config = config
         try:
-            self.service = self._authenticate()
+            self.service = authenticate_gmail_api(config)  # Sử dụng hàm extract
             self.inbox_label = self._create_or_get_label('Inbox_Custom')
             self.spam_label = self._create_or_get_label('Spam_Custom')
             logger.info("Đã khởi tạo EmailHandler với Gmail API.")
@@ -46,39 +74,7 @@ class EmailHandler:
             raise ValueError(f"File {self.config.credentials_path} sai định dạng JSON.")
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Không thể kết nối mạng tới Gmail API: {str(e)}")
-            raise ConnectionError("Không thể kết nối mạng tới Gmail API. Vui lòng kiểm tra kết nối internet.")
-    
-    def _authenticate(self):
-        """Authenticate với Gmail API sử dụng OAuth."""
-        SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
-        creds = None
-        if os.path.exists(self.config.token_path):
-            try:
-                creds = Credentials.from_authorized_user_file(self.config.token_path, SCOPES)
-            except json.JSONDecodeError as e:
-                logger.error(f"File token.json sai định dạng JSON: {str(e)}")
-                raise ValueError(f"File {self.config.token_path} sai định dạng JSON.")
-        
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                try:
-                    creds.refresh(Request())
-                except requests.exceptions.ConnectionError as e:
-                    logger.error(f"Không thể refresh token do lỗi mạng: {str(e)}")
-                    raise ConnectionError("Không thể refresh token do lỗi mạng.")
-            else:
-                if not os.path.exists(self.config.credentials_path):
-                    raise FileNotFoundError(f"File {self.config.credentials_path} không tồn tại.")
-                try:
-                    flow = InstalledAppFlow.from_client_secrets_file(self.config.credentials_path, SCOPES)
-                    creds = flow.run_local_server(port=0)
-                except json.JSONDecodeError as e:
-                    raise ValueError(f"File {self.config.credentials_path} sai định dạng JSON: {str(e)}")
-                except requests.exceptions.ConnectionError as e:
-                    raise ConnectionError("Không thể authenticate với Gmail API do lỗi mạng.")
-            with open(self.config.token_path, 'w') as token:
-                token.write(creds.to_json())
-        return build('gmail', 'v1', credentials=creds)
+            raise ConnectionError("Không thể kết nối mạng tới Gmail API.")
     
     def _create_or_get_label(self, label_name: str) -> str:
         """Tạo hoặc lấy ID của label trong Gmail."""
@@ -101,7 +97,7 @@ class EmailHandler:
             raise ConnectionError("Không thể kết nối mạng tới Gmail API.")
     
     def process_emails(self, max_results: int = 10):
-        """Fetch unread emails, classify, apply label, và lưu vào thư mục local."""
+        """Fetch unread emails, classify, apply label, mark as read, và lưu vào thư mục local."""
         try:
             results = self.service.users().messages().list(
                 userId='me', 
@@ -111,10 +107,10 @@ class EmailHandler:
             ).execute()
             messages = results.get('messages', [])
             if not messages:
-                print("Không có email mới nào.")
                 logger.info("Không có email mới để xử lý.")
-                return
+                return []
             
+            processed_emails = []
             for msg in messages:
                 try:
                     email = self.service.users().messages().get(
@@ -141,7 +137,7 @@ class EmailHandler:
                     result = self.pipeline.predict(body)
                     prediction = result['prediction']
                     
-                    # Apply label trong Gmail
+                    # Apply label và mark as read trong Gmail
                     label_id = self.spam_label if prediction == 'spam' else self.inbox_label
                     self.service.users().messages().modify(
                         userId='me', 
@@ -149,18 +145,27 @@ class EmailHandler:
                         body={'addLabelIds': [label_id], 'removeLabelIds': ['UNREAD']}
                     ).execute()
                     
-                    # Lưu vào thư mục local (không cần xác nhận)
+                    # Lưu vào thư mục local
                     local_dir = self.config.spam_local_dir if prediction == 'spam' else self.config.inbox_local_dir
                     filename = f"email_{msg['id']}.txt"
-                    with open(os.path.join(local_dir, filename), 'w', encoding='utf-8') as f:
+                    file_path = os.path.join(local_dir, filename)
+                    with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(f"Subject: {email.get('snippet', 'No Subject')}\n\n{body}")
-                    logger.info(f"Lưu email ID {msg['id']} vào {local_dir}/{filename}")
+                    logger.info(f"Lưu email ID {msg['id']} vào {file_path}")
+                    
+                    # Thu thập để trả về cho UI
+                    processed_emails.append({
+                        'id': msg['id'],
+                        'body': body,
+                        'prediction': prediction
+                    })
                 except HttpError as e:
                     logger.error(f"Lỗi khi xử lý email ID {msg['id']}: {str(e)}")
                     continue
                 except requests.exceptions.ConnectionError as e:
                     logger.error(f"Không thể xử lý email ID {msg['id']} do lỗi mạng: {str(e)}")
-                    raise ConnectionError(f"Không thể xử lý email ID {msg['id']} do lỗi mạng.")
+                    continue
+            return processed_emails
         except HttpError as e:
             logger.error(f"Lỗi khi fetch emails: {str(e)}")
             raise
