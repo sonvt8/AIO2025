@@ -1,0 +1,323 @@
+\section{Giới thiệu: Khám phá ETL Pipeline - Nền tảng của Dữ liệu thông minh}
+
+Bạn có bao giờ tự hỏi làm thế nào các công ty lớn có thể tổng hợp và phân tích hàng núi dữ liệu từ đủ mọi nguồn để đưa ra những quyết định kinh doanh "đắt giá"? Bí mật nằm ở một kỹ thuật quan trọng trong ngành dữ liệu: \textbf{ETL Pipeline} (Extract, Transform, Load).
+
+Hãy tưởng tượng một công ty bán lẻ với các bộ phận khác nhau như Marketing, Vận hành, Tài chính, và Bán hàng, mỗi bộ phận lại lưu trữ dữ liệu riêng trên các hệ thống khác nhau như MySQL, Supabase hay file Excel. Khi các nhà quản lý cần cái nhìn tổng thể về hiệu suất kinh doanh (ví dụ: xu hướng hành vi khách hàng trong 2 năm qua, tổng doanh thu tháng trước), họ phải đối mặt với nhiều thách thức:
+\begin{itemize}
+    \item \textbf{Tốn thời gian và công sức:} Tổng hợp dữ liệu từ nhiều nguồn khác nhau là một quá trình thủ công, mất rất nhiều thời gian và nguồn lực.
+    \item \textbf{Dễ sai sót và không nhất quán:} Sự tham gia của con người trong quá trình tổng hợp thủ công dễ dẫn đến sai sót và dữ liệu không đồng bộ.
+    \item \textbf{Khó có báo cáo tổng hợp:} Mỗi nguồn dữ liệu có định dạng và thuật ngữ khác nhau, gây khó khăn trong việc tạo ra một báo cáo tích hợp, toàn diện.
+    \item \textbf{Thông tin không đáng tin cậy:} Nguy cơ số liệu không khớp hoặc thông tin sai lệch có thể xảy ra, làm giảm độ tin cậy của các quyết định dựa trên dữ liệu.
+\end{itemize}
+
+Để giải quyết những vấn đề này và cho phép đưa ra các quyết định dựa trên dữ liệu (\textbf{Data-driven decision making}), chúng ta cần một giải pháp tập trung, đáng tin cậy và có khả năng mở rộng để sử dụng dữ liệu hiệu quả. Đây chính là lúc ETL Pipeline phát huy vai trò của mình.
+
+\subsection{ETL Pipeline là gì?}
+
+\textbf{ETL} là viết tắt của ba giai đoạn chính trong quá trình di chuyển và xử lý dữ liệu:
+\begin{itemize}
+    \item \textbf{Extract (Trích xuất):} Thu thập dữ liệu thô từ các nguồn khác nhau.
+    \item \textbf{Transform (Chuyển đổi):} Làm sạch, chuẩn hóa, và biến đổi dữ liệu để phù hợp với mục đích phân tích.
+    \item \textbf{Load (Tải):} Chuyển dữ liệu đã được xử lý vào một kho lưu trữ cuối cùng, sẵn sàng cho việc phân tích và báo cáo.
+\end{itemize}
+
+Hãy hình dung ETL Pipeline như một "nhà bếp" trong một nhà hàng lớn, nơi dữ liệu thô được biến thành món ăn ngon, sẵn sàng phục vụ thực khách (người dùng phân tích).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/etl_process_overview.png}
+    \caption{Tổng quan quy trình ETL.}
+\end{figure}
+
+\section{Data Extraction - "Thu thập nguyên liệu"}
+
+Giai đoạn \textbf{Data Extraction} là bước đầu tiên và quan trọng nhất, nơi chúng ta "thu thập nguyên liệu" (dữ liệu thô) từ mọi ngóc ngách khác nhau. Dữ liệu này có thể đến từ các cơ sở dữ liệu (ví dụ: MySQL, MongoDB, Supabase), các tệp tin (ví dụ: CSV, Excel), hoặc thông qua các API của các ứng dụng. Mục tiêu là đưa tất cả dữ liệu thô này về một khu vực lưu trữ tạm thời, được gọi là \textbf{Staging Area}, trước khi đi vào các bước xử lý sâu hơn.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/extraction_process_diagram.png}
+    \caption{Quá trình Data Extraction.}
+\end{figure}
+
+\subsection{Các phương pháp trích xuất dữ liệu}
+
+Có hai cách tiếp cận chính để lấy dữ liệu:
+\begin{itemize}
+    \item \textbf{Pull (Kéo):} Hệ thống của chúng ta chủ động gửi yêu cầu để lấy dữ liệu từ nguồn. Đây là phương pháp phổ biến khi làm việc với các cơ sở dữ liệu.
+    \item \textbf{Push (Đẩy):} Nguồn dữ liệu tự động gửi dữ liệu về cho hệ thống của chúng ta khi có sự kiện hoặc theo lịch trình định sẵn.
+\end{itemize}
+
+\subsection{Các kiểu trích xuất dữ liệu}
+
+Để tối ưu hiệu suất và tài nguyên, chúng ta cần cân nhắc kiểu trích xuất:
+\begin{itemize}
+    \item \textbf{Full Extraction (Trích xuất toàn bộ):} Lấy toàn bộ dữ liệu từ nguồn mỗi lần chạy. Phương pháp này đơn giản nhưng tốn kém tài nguyên nếu dữ liệu lớn.
+    \item \textbf{Incremental Extraction (Trích xuất tăng dần):} Chỉ lấy những dữ liệu mới được thêm vào hoặc đã thay đổi kể từ lần trích xuất cuối cùng. Để thực hiện điều này, chúng ta thường sử dụng kỹ thuật \textbf{Change Data Capture (CDC)}. CDC giúp theo dõi và ghi lại các thay đổi trong dữ liệu nguồn.
+\\
+\end{itemize}
+
+\subsection{Vấn đề thường gặp trong quá trình trích xuất: Xung đột khóa tổ hợp}
+
+Khi thu thập dữ liệu từ nhiều nguồn khác nhau, một vấn đề phổ biến là \textbf{Composite Key Collisions} (xung đột khóa tổ hợp). Điều này xảy ra khi các bản ghi từ các nguồn khác nhau có cùng một khóa nhưng lại đại diện cho các thực thể khác nhau, hoặc cùng một thực thể nhưng có sự mâu thuẫn trong dữ liệu.
+
+Ví dụ, hai cửa hàng khác nhau có thể cùng có một giao dịch với cùng một \texttt{transac\_id} (ID giao dịch). Nếu chỉ dựa vào \texttt{transac\_id}, chúng ta sẽ không thể phân biệt được giao dịch nào thuộc về cửa hàng nào.
+\begin{figure}[H]
+    \begin{lstlisting}[language=SQL, numbers=none]
+-- Data from Store A
+"store_id","transac_id","amount","cost"
+"st00a","tran001","1","2"
+"st00a","tran002","3","2.3"
+"st00a","tran003","2","1.9"
+
+-- Data from Store B
+"store_id","transac_id","amount","cost"
+"st00b","tran001","1","2"
+"st00b","tran002","3","2.3"
+"st00b","tran003","2","1.9"
+    \end{lstlisting}
+    \caption{Example of composite key collision from different sources.}
+    \label{lst:composite_key_collision}
+\end{figure}
+Khi gộp hai bảng này lại mà không xử lý, chúng ta sẽ có các bản ghi trùng lặp \texttt{transac\_id} như sau:
+\begin{figure}[H]
+    \begin{lstlisting}[language=SQL, numbers=none]
+"transac_id","store_id","amount","cost"
+"tran001","st00a","1","2"
+"tran001","st00b","3","2.3" -- Note: "amount" value may differ if it's a different transaction
+    \end{lstlisting}
+    \caption{Table after merging without handling collisions.}
+    \label{lst:merged_collision}
+\end{figure}
+Để giải quyết, chúng ta cần xem xét \texttt{(store\_id, transac\_id)} như một khóa duy nhất. Các vấn đề này cần được xử lý ở bước Transform hoặc trong chiến lược tải dữ liệu.
+
+\subsection{Case Study: Trích xuất dữ liệu bán rượu Iowa Liquor Sale}
+
+Chúng ta sẽ minh họa quá trình trích xuất bằng bộ dữ liệu "Iowa Liquor Sales". Bộ dữ liệu này chứa thông tin chi tiết về việc mua rượu của các cửa hàng được cấp phép tại Iowa, rất hữu ích cho việc phân tích xu hướng bán hàng.
+
+Bộ dữ liệu này có khoảng 1 triệu bản ghi và 24 cột khác nhau, bao gồm các thông tin về hóa đơn, ngày, cửa hàng, sản phẩm, giá cả, số lượng bán, và thông tin địa lý.
+
+Trong thực tế, bộ dữ liệu này có thể được cung cấp dưới dạng nhiều file CSV nhỏ. Để xử lý hiệu quả lượng dữ liệu lớn từ nhiều file, chúng ta thường sử dụng phương pháp \textbf{Batch Processing} (xử lý theo lô). Dữ liệu từ các file CSV sẽ được đọc từng phần (ví dụ: 100.000 dòng hoặc 10.000 dòng một lần) và sau đó được chuyển vào một cơ sở dữ liệu tạm thời như SQLite, đóng vai trò là Staging Area.
+
+\begin{figure}[H]
+    \begin{lstlisting}[language=SQL, numbers=left]
+DROP TABLE IF EXISTS Staging_Sales;
+CREATE TABLE Staging_Sales (
+    invoice_line_no TEXT,
+    date TEXT,
+    store TEXT,
+    name TEXT,
+    address TEXT,
+    city TEXT,
+    zipcode TEXT,
+    store_location TEXT,
+    county_number TEXT,
+    county TEXT,
+    category TEXT,
+    category_name TEXT,
+    vendor_no TEXT,
+    vendor_name TEXT,
+    itemno TEXT,
+    im_desc TEXT,
+    pack TEXT,
+    bottle_volume_ml TEXT,
+    state_bottle_cost TEXT,
+    state_bottle_retail TEXT,
+    sale_bottles TEXT,
+    sale_dollars TEXT,
+    sale_liters TEXT,
+    sale_gallons TEXT,
+    file_name TEXT NOT NULL,
+    processed_timestamp DATETIME NOT NULL,
+    record_source TEXT NOT NULL -- Add record_source field for more detailed tracking
+);
+    \end{lstlisting}
+    \caption{Example of creating Staging\_Sales table in SQLite.}
+    \label{lst:staging_table}
+\end{figure}
+
+\section{Data Transformation - "Sơ chế và chế biến nguyên liệu"}
+
+Sau khi "thu thập nguyên liệu" và đưa vào khu vực lưu trữ tạm thời (\textbf{Staging Area}), bước tiếp theo là \textbf{Data Transformation}. Đây là giai đoạn quan trọng nhất của ETL, nơi dữ liệu thô được "sơ chế" và "chế biến" thành dạng sạch sẽ, có cấu trúc và sẵn sàng cho việc phân tích. Giống như việc bạn rửa sạch, gọt vỏ, cắt thái, và tẩm ướp gia vị cho rau củ và thịt cá để chuẩn bị cho món ăn ngon.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/data_transformation_overview.png}
+\end{figure}
+
+Mục tiêu chính của Data Transformation là đảm bảo chất lượng dữ liệu cao, đồng nhất và phù hợp với các mục đích phân tích sau này.
+
+\subsection{Các hoạt động chính trong Data Transformation}
+
+1.  \textbf{Data Cleaning (Làm sạch dữ liệu):} Đây là công đoạn đầu tiên và thiết yếu, giống như việc loại bỏ những phần rau củ bị hỏng, úa.
+    \begin{itemize}
+        \item \textbf{Xử lý dữ liệu trùng lặp (Duplicated data):}
+            \begin{itemize}
+                \item \textbf{Vấn đề:} Trong quá trình trích xuất, đặc biệt khi lấy dữ liệu từ nhiều nguồn hoặc theo thời gian, có thể xuất hiện các bản ghi hoàn toàn giống nhau hoặc các bản ghi chỉ khác nhau ở một vài thông tin nhỏ (ví dụ, thời gian cập nhật của trường \texttt{store\_location}).
+                \item \textbf{Giải pháp:}
+                    \item Loại bỏ trùng lặp hoàn toàn: Nếu các bản ghi giống hệt nhau, chúng ta sẽ giữ lại một bản và xóa các bản còn lại.
+                    \item Xử lý bản ghi cập nhật: Trong trường hợp dữ liệu có cùng khóa chính (ví dụ \texttt{invoice\_line\_no} và \texttt{store}) nhưng một số trường bị thay đổi (ví dụ, \texttt{store\_location} được cập nhật), chúng ta cần xác định đâu là bản ghi mới nhất hoặc chính xác nhất để giữ lại. Một chiến lược phổ biến là giữ bản ghi đầu tiên hoặc cuối cùng khi loại bỏ trùng lặp dựa trên một tập hợp các cột xác định.
+            \end{itemize}
+        \item \textbf{Xử lý dữ liệu thiếu (Missing data - Null values):}
+            \begin{itemize}
+                \item \textbf{Vấn đề:} Nhiều cột dữ liệu có thể bị thiếu thông tin (ví dụ, \texttt{address}, \texttt{city}, \texttt{zipcode}, \texttt{store\_location}, \texttt{county\_number}, \texttt{county}, \texttt{category}, \texttt{category\_name}, \texttt{state\_bottle\_cost}, \texttt{state\_bottle\_retail}, \texttt{sale\_bottles}, \texttt{sale\_dollars}, \texttt{sale\_liters}, \texttt{sale\_gallons} trong bộ dữ liệu Iowa Liquor Sale có thể có giá trị \texttt{null}).
+                \item \textbf{Giải pháp:}
+                    \item Điền giá trị mặc định: Đối với các trường như địa chỉ, bạn có thể điền "Unknown" (Không xác định) thay vì để trống.
+                    \item Xóa bỏ bản ghi: Nếu một số cột quan trọng (ví dụ: các cột liên quan đến doanh số như \texttt{state\_bottle\_cost}, \texttt{state\_bottle\_retail}, \texttt{sale\_bottles}, \texttt{sale\_dollars}, \texttt{sale\_liters}, \texttt{sale\_gallons}) bị thiếu, và việc điền dữ liệu không khả thi hoặc có thể làm sai lệch kết quả, chúng ta có thể xóa các bản ghi đó.
+            \end{itemize}
+        \item \textbf{Xử lý dữ liệu không hợp lệ (Invalid data - Outliers, incorrect formats):}
+            \begin{itemize}
+                \item \textbf{Vấn đề:} Dữ liệu có thể không tuân theo các quy tắc nghiệp vụ hoặc có định dạng sai (ví dụ, giá trị âm cho số lượng bán, hoặc định dạng ngày tháng không đúng).
+                \textbf{Giải pháp:}
+                    \item Lọc (Filtering): Loại bỏ các bản ghi không hợp lệ theo logic nghiệp vụ (ví dụ: loại bỏ các giao dịch có số lượng hoặc giá trị doanh thu $< 1$, vì chúng không có ý nghĩa kinh doanh).
+                    \item Chuyển đổi kiểu dữ liệu (Type Casting): Đảm bảo các cột có đúng kiểu dữ liệu. Ví dụ, cột ngày (\texttt{date}) phải là kiểu ngày tháng, và các cột số (\texttt{state\_bottle\_cost}, \texttt{state\_bottle\_retail}, \texttt{sale\_bottles}, \texttt{sale\_dollars}, \texttt{sale\_liters}, \texttt{sale\_gallons}) phải là kiểu số để có thể thực hiện tính toán. Các giá trị không thể chuyển đổi sẽ được chuyển thành \texttt{NaN} (Not a Number), sau đó có thể xử lý như dữ liệu thiếu.
+            \end{itemize}
+    \end{itemize}
+
+2.  \textbf{Data Processing (Xử lý dữ liệu):} Sau khi làm sạch, dữ liệu sẽ được "chế biến" để tạo ra thông tin hữu ích hơn.
+    \begin{itemize}
+        \item \textbf{Tạo cột dẫn xuất (Derived Column):} Tính toán các cột mới từ các cột hiện có dựa trên logic nghiệp vụ. Ví dụ, từ \texttt{sale\_dollars} và \texttt{state\_bottle\_cost}, bạn có thể tính \texttt{profit} (lợi nhuận), \texttt{revenue} (doanh thu), \texttt{cost} (chi phí), \texttt{profit\_margin} (tỷ suất lợi nhuận), \texttt{average\_bottle\_price} (giá trung bình mỗi chai), \texttt{volume\_per\_bottle\_sold} (thể tích mỗi chai đã bán).
+        \begin{lstlisting}[language=Python, numbers=left, basicstyle=\ttfamily\small, caption={Example of creating derived columns in Python},label={lst:derived_columns}]
+df['revenue'] = df ['sale_dollars']
+df['cost'] = df ['state_bottle_cost'] * df ['sale_bottles']
+df['profit'] = (df['state_bottle_retail'] - df['state_bottle_cost']) * df ['sale_bottles']
+df['total_bottles_sold'] = df ['sale_bottles']
+df ['total_volume_sold_in_liters'] = df ['sale_liters']
+df['profit_margin'] = (df ['profit'] / df ['revenue'] * 100).round(2).where(df['revenue'] > 0, 0)
+df ['average_bottle_price'] = (df['sale_dollars'] / df ['sale_bottles']).round(2).where(df['sale_bottles'] > 0,0)
+df ['volume_per_bottle_sold'] = (df['sale_liters'] / df ['sale_bottles']).round(2).where(df['sale_bottles'] > 0, 0)
+derived_columns = ['revenue', 'cost', 'profit', 'total_bottles_sold', 'total_volume_sold_in_liters', 'profit_margin', 'average_bottle_price', 'volume_per_bottle_sold']
+df_derived = df [derived_columns]
+df_derived.head()
+\end{lstlisting}
+        \item \textbf{Tổng hợp (Aggregate):} Gom nhóm dữ liệu và thực hiện các phép tính tổng hợp như tổng, trung bình, đếm, v.v. Ví dụ: Tổng doanh thu theo từng tháng, tổng số lượng sản phẩm bán ra của từng cửa hàng.
+        \item \textbf{Chuẩn hóa (Normalize):} Tổ chức lại dữ liệu để giảm thiểu sự trùng lặp và cải thiện tính toàn vẹn của dữ liệu (ví dụ: tách các bảng lớn thành các bảng nhỏ hơn, liên kết với nhau bằng khóa).
+        \item \textbf{Tích hợp (Integrate):} Kết hợp dữ liệu từ các nguồn khác nhau thành một cấu trúc thống nhất.
+    \end{itemize}
+
+Sau bước Transformation này, dữ liệu của chúng ta đã trở nên gọn gàng, có ý nghĩa và sẵn sàng để được "tải" vào kho dữ liệu cuối cùng.
+
+\section{Data Loading - "Phục vụ món ăn"}
+
+Sau khi dữ liệu đã được Extract và Transform, bước cuối cùng là \textbf{Data Loading}. Đây là giai đoạn chuyển dữ liệu đã được xử lý vào nơi lưu trữ cuối cùng, thường là một \textbf{Data Warehouse} hoặc \textbf{Data Mart}. Việc này giống như đưa "món ăn đã chế biến sẵn" vào "khu vực trưng bày" của nhà hàng, nơi khách hàng (các nhà phân tích dữ liệu, hệ thống báo cáo) có thể dễ dàng tiếp cận và thưởng thức.
+
+\subsection{Data Warehouse và Data Mart: Kho chứa thông tin}
+
+Để tối ưu cho việc phân tích, dữ liệu trong Data Warehouse thường được tổ chức theo các mô hình chuyên biệt, với hai loại bảng chính:
+
+1.  \textbf{Fact Tables (Bảng dữ kiện):}
+    \begin{itemize}
+        \item Lưu trữ các dữ liệu định lượng, có thể đo lường được, liên quan đến các sự kiện kinh doanh. Đây là các "con số" chính mà bạn muốn phân tích.
+        \item \textbf{Đặc điểm chính:} Chứa các số liệu đo lường được và bao gồm các khóa ngoại (Foreign Keys) liên kết đến các bảng chiều (Dimension Tables).
+        \item \textbf{Ví dụ trong Iowa Liquor Sale:} Bảng \texttt{sales\_fact} sẽ chứa các thông tin như \texttt{revenue}, \texttt{profit}, \texttt{cost}, \texttt{total\_bottles\_sold}, \texttt{total\_volume\_sold\_in\_liters}, \texttt{profit\_margin}, \texttt{average\_bottle\_price}, \texttt{volume\_per\_bottle\_sold}. Nó cũng sẽ có các khóa ngoại như \texttt{date\_key}, \texttt{store\_key}, \texttt{item\_key}, \texttt{vendor\_key} để liên kết đến các bảng chiều tương ứng.
+    \end{itemize}
+
+2.  \textbf{Dimension Tables (Bảng chiều):}
+    \begin{itemize}
+        \item Lưu trữ các thuộc tính mô tả, cung cấp ngữ cảnh cho các dữ kiện. Chúng trả lời các câu hỏi "ai, cái gì, ở đâu, khi nào".
+        \item \textbf{Đặc điểm chính:} Chứa các cột mô tả, có một khóa chính (Primary Key), và thường có ít dòng hơn các bảng dữ kiện.
+        \item \textbf{Ví dụ trong Iowa Liquor Sale:}
+            \begin{itemize}
+                \item \texttt{date\_dim} (chiều thời gian): Chứa \texttt{date\_key}, \texttt{date}, \texttt{year}, \texttt{month}, \texttt{day}, \texttt{quarter}, \texttt{weekday}.
+                \item \texttt{store\_dim} (chiều cửa hàng): Chứa \texttt{store\_key}, \texttt{store\_id}, \texttt{address}, \texttt{city}, \texttt{zipcode}, \texttt{store\_location}, \texttt{county\_number}, \texttt{county}.
+                \item \texttt{item\_dim} (chiều sản phẩm): Chứa \texttt{item\_key}, \texttt{itemno}, \texttt{im\_desc}, \texttt{category}, \texttt{category\_name}, \texttt{pack}, \texttt{bottle\_volume\_ml}, \texttt{state\_bottle\_cost}, \texttt{state\_bottle\_retail}.
+                \item \texttt{vendor\_dim} (chiều nhà cung cấp): Chứa \texttt{vendor\_key}, \texttt{vendor\_no}, \texttt{vendor\_name}.
+            \end{itemize}
+    \end{itemize}
+
+\subsection{Xử lý thay đổi dữ liệu theo thời gian: Slowly Changing Dimension (SCD)}
+
+Một vấn đề quan trọng khi tải dữ liệu vào Dimension Tables là làm thế nào để xử lý khi thông tin mô tả bị thay đổi. Ví dụ, một cửa hàng thay đổi địa chỉ. Có nhiều loại SCD, nhưng phổ biến nhất là:
+
+1.  \textbf{SCD Type 1 - Overwrite (Ghi đè):}
+    \begin{itemize}
+        \item Khi có thay đổi, bạn cập nhật trực tiếp bản ghi cũ bằng thông tin mới.
+        \item \textbf{Ưu điểm:} Dễ thực hiện, không tốn không gian lưu trữ.
+        \textbf{Nhược điểm:} Mất đi lịch sử dữ liệu. Bạn sẽ không biết địa chỉ cũ của cửa hàng là gì.
+    \end{itemize}
+
+2.  \textbf{SCD Type 2 - Add New Row (Thêm hàng mới):}
+    \begin{itemize}
+        \item Đây là phương pháp phổ biến và được khuyến nghị khi cần giữ lại lịch sử dữ liệu. Khi có thay đổi, bạn không cập nhật bản ghi cũ mà thêm một bản ghi mới với thông tin cập nhật. Bản ghi cũ sẽ được đánh dấu là không còn hoạt động.
+        \item Để làm được điều này, các bảng chiều cần có thêm các cột theo dõi trạng thái lịch sử như \texttt{start\_date}, \texttt{end\_date}, và \texttt{is\_active}.
+        \item \textbf{Ưu điểm:} Giữ lại toàn bộ lịch sử thay đổi của dữ liệu, rất hữu ích cho các phân tích xu hướng hoặc so sánh theo thời gian.
+        \textbf{Nhược điểm:} Tốn thêm không gian lưu trữ do có nhiều bản ghi cho cùng một thực thể.
+        \item \textbf{Quy trình tải SCD Type 2:}
+            \begin{lstlisting}[language=Python, numbers=left, basicstyle=\ttfamily\small, caption={Handling SCD Type 2 for initial load},label={lst:scd_type2_initial}]
+def process_scd_type2(df, dim_table, key_col, attributes, conn):
+    # Create a copy to avoid SettingWithCopyWarning
+    df = df.copy()
+    if current_dim.empty:
+        # Initial load: all records are new
+        df = df.assign(
+            start_date=datetime.now().date(),
+            end_date=None,
+            is_active=True
+        )
+        df.to_sql(dim_table, conn, if_exists='append', index=False)
+        return
+\end{lstlisting}
+            \begin{lstlisting}[language=Python, numbers=left, basicstyle=\ttfamily\small, caption={Handling SCD Type 2 for subsequent loads},label={lst:scd_type2_subsequent}]
+# Find new and changed records
+merged = df.merge(current_dim, on=key_col, how='outer', suffixes=('_new', '_current'), indicator=True)
+
+# New records
+new_records = merged[merged['_merge'] == 'left_only'][[key_col] + attributes].copy()
+if not new_records.empty:
+    new_records = new_records.assign(
+        start_date=datetime.now().date(),
+        end_date=None,
+        is_active=True
+    )
+    new_records.to_sql(dim_table, conn, if_exists='append', index=False)
+
+# Changed records
+changed_records = merged[merged['_merge'] == 'both'].copy()
+for attr in attributes:
+    changed_records = changed_records[changed_records[attr] != changed_records[f"{attr}_current"]]
+
+if not changed_records.empty:
+    # Expire old records
+    conn.execute(text(f"""
+        UPDATE {dim_table}
+        SET end_date = :end_date, is_active = 0
+        WHERE {key_col} = :key_val AND is_active = 1
+    """), [{'end_date': datetime.now().date(), 'key_val': row[key_col]} for _, row in changed_records.iterrows()])
+
+    # Insert new versions
+    new_versions = changed_records[[key_col] + attributes].copy()
+    new_versions = new_versions.assign(
+        start_date=datetime.now().date(),
+        end_date=None,
+        is_active=True
+    )
+    new_versions.to_sql(dim_table, conn, if_exists='append', index=False)
+\end{lstlisting}
+    \end{itemize}
+
+\subsection{Sau khi dữ liệu được tải vào Data Warehouse: Bước tiếp theo}
+
+Dữ liệu đã được tải vào Data Warehouse hoặc Data Mart giờ đây đã sạch sẽ, có cấu trúc và sẵn sàng để khai thác giá trị. Từ đây, dữ liệu có thể được sử dụng cho các mục đích quan trọng như:
+\begin{itemize}
+    \item \textbf{Phân tích dữ liệu (Data Analysis):} Sử dụng các công cụ và kỹ thuật như Machine Learning (ML) hoặc Trực quan hóa (Visualize) để khám phá các xu hướng, insight từ dữ liệu (ví dụ: biểu đồ lợi nhuận, số lượng chai bán theo tháng).
+    \item \textbf{Báo cáo (Reporting):} Tạo ra các báo cáo định kỳ, Dashboard để theo dõi hiệu suất kinh doanh, giúp các nhà quản lý đưa ra quyết định nhanh chóng và chính xác.
+\end{itemize}
+Quá trình này được gọi là \textbf{Online Analytical Processing (OLAP)}, cho phép người dùng thực hiện các truy vấn phức tạp và phân tích đa chiều trên dữ liệu.
+
+\section{Kết luận: ETL Pipeline - Trái tim của Dữ liệu thông minh}
+
+ETL Pipeline không chỉ là một chuỗi các bước kỹ thuật, mà nó là trái tim của bất kỳ hệ thống dữ liệu thông minh nào. Nắm vững ETL giúp bạn:
+\begin{itemize}
+    \item \textbf{Hiểu sâu dữ liệu:} Không chỉ nhìn con số mà còn thấy câu chuyện phía sau.
+    \item \textbf{Đưa ra quyết định thông minh:} Chọn đúng phương pháp xử lý dữ liệu cho từng tình huống.
+    \item \textbf{Xây dựng hệ thống dữ liệu tốt hơn:} Nền tảng vững chắc dẫn đến các mô hình phân tích và báo cáo hiệu quả.
+\end{itemize}
+
+\subsection{Bước tiếp theo}
+Để trở thành một chuyên gia trong lĩnh vực này, hãy:
+\begin{enumerate}
+    \item Thực hành xây dựng các ETL Pipeline đơn giản với Python và các thư viện như Pandas, SQLAlchemy.
+    \item Tìm hiểu sâu hơn về các kiến trúc dữ liệu như Data Lake, Data Lakehouse.
+    \item Khám phá các công cụ ETL chuyên nghiệp trong công nghiệp (ví dụ: Apache Airflow, Talend, Microsoft SSIS).
+\end{enumerate}
+
+\textbf{Hãy nhớ:} Mọi đột phá trong AI đều bắt đầu từ dữ liệu chất lượng cao, và ETL Pipeline chính là cầu nối để biến dữ liệu thô thành tài sản giá trị!
