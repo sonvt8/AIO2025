@@ -1,0 +1,277 @@
+\section{Giới thiệu: "Ngưu tầm ngưu, mã tầm mã" - Triết lý của KNN}
+
+Ngạn ngữ có câu "\textbf{Ngưu tầm ngưu, mã tầm mã}" (Birds of a feather flock together), hay một câu nói quen thuộc khác: "Hãy cho tôi biết bạn của bạn là ai, tôi sẽ cho bạn biết bạn là người như thế nào". Thật vậy, trong cuộc sống, chúng ta thường có xu hướng đưa ra đánh giá hoặc nhận định dựa trên một nguyên tắc rất tự nhiên: \textbf{những gì giống nhau thường có xu hướng ở gần nhau}.
+
+Chính cách suy luận quen thuộc này, tưởng chừng chỉ thuộc về đời sống, lại vô tình phản ánh triết lý cốt lõi của một trong những thuật toán học máy trực quan và dễ hiểu nhất: \textbf{k-Nearest Neighbors (KNN)} \cite{fix_hodges_1951}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/knn-intuition.png}
+    \caption{Trực quan triết lý “ngưu tầm ngưu” trong KNN: điểm mới (màu đỏ) được phân loại dựa vào các hàng xóm gần nhất.}
+    \label{fig:knn-intuition}
+\end{figure}
+
+Ý tưởng của KNN vô cùng đơn giản nhưng lại rất trực quan: để xác định bản chất của một đối tượng mới, chúng ta chỉ cần quan sát những "người hàng xóm" gần nhất của nó trong một không gian đã biết và đưa ra dự đoán dựa trên thông tin từ họ.
+
+\textbf{Ví dụ thực tế:}
+\begin{itemize}
+\item Nếu đa số hàng xóm của một email mới là "Spam", khả năng cao email đó cũng sẽ là "Spam"
+\item Nếu những ngôi nhà có cùng diện tích, vị trí và số phòng ngủ đều có mức giá nhất định, thì một ngôi nhà mới với các đặc điểm tương tự cũng sẽ có giá xấp xỉ như vậy
+\end{itemize}
+
+\section{Khái niệm cơ bản: Ba đặc trưng quan trọng của KNN}
+
+k-Nearest Neighbors (KNN) là một trong những thuật toán cơ bản trong học máy \cite{hastie2009elements}, được đặc trưng bởi ba tính chất quan trọng:
+
+\subsection{1. Supervised Learning (Học có giám sát)}
+
+KNN yêu cầu một tập dữ liệu huấn luyện mà trong đó mỗi điểm dữ liệu (đầu vào) đã được gán sẵn một "nhãn" hoặc "giá trị" (đầu ra) chính xác. Mục tiêu của thuật toán là học cách dự đoán đầu ra cho các điểm dữ liệu mới chưa từng thấy dựa trên mối liên hệ đã học được từ dữ liệu huấn luyện.
+
+\subsection{2. Non-parametric (Phi tham số)}
+
+Thuật ngữ này không có nghĩa là mô hình không có tham số nào, mà là nó \textbf{không đưa ra bất kỳ giả định nào về dạng phân phối của dữ liệu}. Mô hình không bị giới hạn bởi một số lượng tham số cố định. Thay vào đó, độ phức tạp của mô hình (chính là toàn bộ tập dữ liệu) sẽ tăng lên khi chúng ta cung cấp thêm dữ liệu. 
+
+Điều này giúp KNN rất linh hoạt và có thể học được các ranh giới quyết định phức tạp.
+
+\subsection{3. Instance-based / Lazy Learning (Dựa trên thực thể / Học lười)}
+
+Đây là đặc điểm độc đáo nhất của KNN. Không giống như các thuật toán khác (như hồi quy tuyến tính, mạng nơ-ron) cố gắng xây dựng một hàm tổng quát trong giai đoạn huấn luyện, KNN \textbf{không có giai đoạn huấn luyện thực sự}. 
+
+Nó chỉ đơn giản là lưu trữ toàn bộ tập dữ liệu huấn luyện. Quá trình tính toán chính, bao gồm việc tìm kiếm láng giềng và dự đoán, bị trì hoãn cho đến khi có một yêu cầu dự đoán mới.
+
+\section{Bốn bước hoạt động của KNN}
+
+KNN hoạt động theo một quy trình đơn giản gồm 4 bước chính \cite{sklearn_knn}:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/knn-4-steps.png}
+    \caption{Bốn bước chính của thuật toán KNN: Chọn $k$, tính khoảng cách, tìm láng giềng, và ra quyết định.}
+    \label{fig:knn-4steps}
+\end{figure}
+
+\subsection{Bước 1: Lựa chọn siêu tham số k}
+
+Bước đầu tiên và mang tính định hướng cho toàn bộ thuật toán là việc lựa chọn siêu tham số k - số lượng "hàng xóm" mà chúng ta sẽ tham khảo ý kiến để quyết định tính chất của điểm dữ liệu mới.
+
+\textbf{Tác động của việc chọn k:}
+\begin{itemize}
+\item \textbf{k quá nhỏ (k = 1):} Mô hình trở nên cực kỳ linh hoạt, rất nhạy cảm với nhiễu → có thể dẫn đến overfitting
+\item \textbf{k quá lớn (k = N):} Mô hình trở nên quá "bảo thủ", bỏ qua các chi tiết quan trọng → có thể dẫn đến underfitting
+\end{itemize}
+
+\textbf{Phương pháp chọn k tối ưu:}
+\begin{enumerate}
+\item \textbf{Cross-Validation:} Phương pháp tiêu chuẩn và đáng tin cậy nhất
+\item \textbf{Rule of Thumb:} $k = \sqrt{N}$, trong đó N là tổng số điểm trong tập dữ liệu huấn luyện
+\item \textbf{Chọn k lẻ:} Để tránh trường hợp "hòa phiếu" trong bài toán phân loại
+\end{enumerate}
+
+\subsection{Bước 2: Tính khoảng cách}
+
+Để xác định ai là "hàng xóm" gần nhất, KNN cần một phương pháp đo "sự gần gũi". 
+
+\textbf{Lưu ý quan trọng - Chuẩn hóa dữ liệu:}
+Trước khi tính khoảng cách, có một bước tiền xử lý bắt buộc là chuẩn hóa dữ liệu. KNN cực kỳ nhạy cảm với thang đo của các đặc trưng.
+
+\textbf{Ví dụ minh họa:} Khi dự đoán giá nhà dựa trên diện tích (30-200 m²) và số phòng ngủ (1-5 phòng). Chênh lệch diện tích (150-80=70) sẽ hoàn toàn lấn át chênh lệch số phòng ngủ (3-2=1), làm cho đặc trưng số phòng ngủ gần như vô dụng.
+
+\textbf{Các thước đo khoảng cách phổ biến:}
+\begin{itemize}
+\item \textbf{Khoảng cách Euclidean (L2):} $d(p,q) = \sqrt{\sum_{i=1}^{n}(q_i-p_i)^2}$ - Phổ biến nhất
+\item \textbf{Khoảng cách Manhattan (L1):} $d(p,q) = \sum_{i=1}^{n}|q_i-p_i|$ - Khoảng cách "đi theo đường phố"
+\end{itemize}
+
+\subsection{Bước 3: Tìm k láng giềng gần nhất}
+
+Sau khi tính khoảng cách từ điểm dữ liệu mới đến mọi điểm trong tập huấn luyện:
+\begin{enumerate}
+\item Sắp xếp các khoảng cách theo thứ tự từ nhỏ đến lớn
+\item Chọn ra k điểm dữ liệu ứng với k khoảng cách nhỏ nhất
+\end{enumerate}
+
+\subsection{Bước 4: Ra quyết định}
+
+Cách "hội đồng" k láng giềng đưa ra quyết định phụ thuộc vào bản chất của bài toán:
+
+\textbf{Đối với bài toán Phân loại - Majority Vote (Lấy ý kiến số đông):}
+\begin{itemize}
+\item Điểm dữ liệu mới sẽ được gán cho lớp nào chiếm đa số trong số k láng giềng gần nhất
+\item \textbf{Ví dụ:} Với k=5, nếu có 3 phiếu "Spam" và 2 phiếu "Not Spam" → kết quả là "Spam"
+\end{itemize}
+
+\textbf{Đối với bài toán Hồi quy - Averaging (Lấy giá trị trung bình):}
+\begin{itemize}
+\item Giá trị dự đoán = trung bình các giá trị mục tiêu của k láng giềng gần nhất
+\item \textbf{Ví dụ:} Ba ngôi nhà có giá 2 tỷ, 2.2 tỷ, 2.4 tỷ → giá dự đoán = (2+2.2+2.4)/3 = 2.2 tỷ
+\end{itemize}
+
+\section{Thực hành Step-by-Step: Dự đoán kết quả học tập sinh viên}
+
+Để hiểu rõ hơn về cơ chế hoạt động của thuật toán, chúng ta sẽ thực hiện tính toán từng bước trên một ví dụ cụ thể.
+
+\subsection{Bối cảnh bài toán}
+
+Giả sử chúng ta có một tập dữ liệu nhỏ về kết quả học tập của 5 sinh viên dựa trên số giờ học và số giờ ngủ mỗi ngày:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Sinh viên} & \textbf{Giờ học (X1)} & \textbf{Giờ ngủ (X2)} & \textbf{Kết quả} & \textbf{Điểm thi} \\
+\hline
+p1 & 2 & 8 & Trượt & 4.5 \\
+p2 & 3 & 7 & Trượt & 5.5 \\
+p3 & 5 & 6 & Đậu & 7.5 \\
+p4 & 6 & 5 & Đậu & 8.5 \\
+p5 & 4 & 6 & Đậu & 7.0 \\
+\hline
+\end{tabular}
+\caption{Dữ liệu huấn luyện về kết quả học tập của sinh viên}
+\end{table}
+
+\textbf{Bài toán:} Có một sinh viên mới với Giờ học = 4, Giờ ngủ = 7. Hãy dự đoán:
+1. Sinh viên này sẽ "Đậu" hay "Trượt"? (bài toán phân loại)
+2. Điểm thi của sinh viên này sẽ là bao nhiêu? (bài toán hồi quy)
+
+\subsection{Thực hiện 4 bước KNN}
+
+\textbf{Bước 1: Chọn k = 3} (số lẻ, phù hợp với tập dữ liệu nhỏ)
+
+\textbf{Bước 2: Tính khoảng cách Euclidean từ $p_{\text{new}}(4,7)$ đến các điểm:}
+
+\begin{itemize}
+    \item Đến $p_1(2,8)$: $d = \sqrt{(4 - 2)^2 + (7 - 8)^2} = \sqrt{4 + 1} = \sqrt{5} \approx 2.24$
+    \item Đến $p_2(3,7)$: $d = \sqrt{(4 - 3)^2 + (7 - 7)^2} = \sqrt{1 + 0} = \sqrt{1} = 1.00$
+    \item Đến $p_3(5,6)$: $d = \sqrt{(4 - 5)^2 + (7 - 6)^2} = \sqrt{1 + 1} = \sqrt{2} \approx 1.41$
+    \item Đến $p_4(6,5)$: $d = \sqrt{(4 - 6)^2 + (7 - 5)^2} = \sqrt{4 + 4} = \sqrt{8} \approx 2.83$
+    \item Đến $p_5(4,6)$: $d = \sqrt{(4 - 4)^2 + (7 - 6)^2} = \sqrt{0 + 1} = \sqrt{1} = 1.00$
+\end{itemize}
+
+\textbf{Bước 3: Sắp xếp và chọn 3 láng giềng gần nhất:}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Điểm} & \textbf{Khoảng cách} & \textbf{Kết quả} & \textbf{Điểm thi} \\
+\hline
+p2 & 1.00 & Trượt & 5.5 \\
+p5 & 1.00 & Đậu & 7.0 \\
+p3 & 1.41 & Đậu & 7.5 \\
+\hline
+\end{tabular}
+\caption{3 láng giềng gần nhất}
+\end{table}
+
+\textbf{Bước 4: Ra quyết định}
+
+\textbf{Cho bài toán phân loại:}
+\begin{itemize}
+\item Số phiếu "Đậu": 2 (p5, p3)
+\item Số phiếu "Trượt": 1 (p2)
+\item \textbf{Kết luận:} Sinh viên mới sẽ \textbf{Đậu}
+\end{itemize}
+
+\textbf{Cho bài toán hồi quy:}
+\begin{itemize}
+\item Điểm trung bình = (5.5 + 7.0 + 7.5)/3 = 20.0/3 ≈ 6.67
+\item \textbf{Kết luận:} Điểm thi dự đoán là \textbf{6.67}
+\end{itemize}
+
+\section{Netflix và KNN: Ứng dụng thực tế trong hệ thống gợi ý}
+
+Một trong những ứng dụng nổi bật nhất của KNN trong thực tế là hệ thống gợi ý (recommendation system) của Netflix \cite{netflix_recommendation_2023}. 
+
+\textbf{Cách Netflix áp dụng KNN:}
+\begin{enumerate}
+\item \textbf{Thu thập dữ liệu:} Netflix ghi nhận hành vi xem phim của từng người dùng (phim nào đã xem, đánh giá, thời gian xem)
+\item \textbf{Tìm người dùng tương tự:} Sử dụng KNN để tìm những người dùng có sở thích tương tự (những "hàng xóm" gần nhất)
+\item \textbf{Gợi ý phim:} Recommend những bộ phim mà các "láng giềng" đã xem và đánh giá cao
+\end{enumerate}
+
+\textbf{Ví dụ cụ thể:} Nếu bạn và 5 người dùng khác có sở thích phim tương tự đều thích phim hành động Marvel, và 4/5 người đó đã xem và đánh giá cao "Spider-Man: No Way Home", Netflix sẽ gợi ý bộ phim này cho bạn.
+
+Cách tiếp cận này giúp Netflix tạo ra trải nghiệm cá nhân hóa, tăng thời gian xem và sự hài lòng của người dùng.
+
+\section{Code Implementation đơn giản}
+
+Để hiểu rõ hơn cách KNN hoạt động trong thực tế, đây là một implementation đơn giản bằng Python \cite{sklearn_knn}:
+
+\begin{lstlisting}[language=Python, caption={Simple implementation of KNN algorithm}]
+import numpy as np
+from collections import Counter
+
+class SimpleKNN:
+    def __init__(self, k=3):
+        self.k = k
+    
+    def fit(self, X, y):
+        """Store training data (Lazy Learning approach)"""
+        self.X_train = X
+        self.y_train = y
+    
+    def euclidean_distance(self, x1, x2):
+        """Calculate Euclidean distance between two points"""
+        return np.sqrt(np.sum((x1 - x2) ** 2))
+    
+    def predict(self, X):
+        """Make predictions for multiple data points"""
+        predictions = [self._predict(x) for x in X]
+        return np.array(predictions)
+    
+    def _predict(self, x):
+        """Make prediction for a single data point"""
+        # Step 2: Calculate distances to all training points
+        distances = [self.euclidean_distance(x, x_train) 
+                    for x_train in self.X_train]
+        
+        # Step 3: Find k nearest neighbors
+        k_indices = np.argsort(distances)[:self.k]
+        k_nearest_labels = [self.y_train[i] for i in k_indices]
+        
+        # Step 4: Majority voting for classification
+        most_common = Counter(k_nearest_labels).most_common(1)
+        return most_common[0][0]
+
+# Example usage with student data
+X_train = np.array([[2,8], [3,7], [5,6], [6,5], [4,6]])
+y_train = np.array(['Fail', 'Fail', 'Pass', 'Pass', 'Pass'])
+
+knn = SimpleKNN(k=3)
+knn.fit(X_train, y_train)
+
+# Predict for new student
+X_new = np.array([[4, 7]])
+prediction = knn.predict(X_new)
+print(f"Prediction result: {prediction[0]}")  # Output: Pass
+\end{lstlisting}
+
+\section{Kết luận: KNN - Đơn giản nhưng mạnh mẽ}
+
+KNN là một thuật toán học máy đặc biệt bởi sự đơn giản và trực quan của nó \cite{hastie2009elements}. Không giống như các thuật toán phức tạp khác, KNN hoạt động dựa trên một nguyên lý cơ bản mà con người chúng ta vẫn thường áp dụng trong đời sống: "\textbf{đánh giá một thứ gì đó dựa trên những gì giống nó nhất}".
+
+\subsection{Những điểm mạnh của KNN:}
+\begin{itemize}
+\item \textbf{Dễ hiểu và triển khai:} Không cần kiến thức toán học phức tạp
+\item \textbf{Không có giả định về dữ liệu:} Có thể xử lý các ranh giới quyết định phức tạp
+\item \textbf{Hiệu quả với dữ liệu nhỏ:} Không cần lượng dữ liệu lớn để hoạt động tốt
+\item \textbf{Ứng dụng đa dạng:} Cả Classification và Regression
+\end{itemize}
+
+\subsection{Những hạn chế cần lưu ý:}
+\begin{itemize}
+\item \textbf{Nhạy cảm với thang đo:} Cần chuẩn hóa dữ liệu
+\item \textbf{Chậm với dữ liệu lớn:} Phải tính khoảng cách đến tất cả điểm
+\item \textbf{Nhạy cảm với nhiễu:} Đặc biệt khi k nhỏ
+\end{itemize}
+
+\subsection{Hướng phát triển:}
+
+Để trở thành thành thạo với KNN và học máy, hãy:
+\begin{enumerate}
+\item \textbf{Thực hành:} Triển khai KNN trên các bộ dữ liệu thực tế
+\item \textbf{Tìm hiểu sâu hơn:} Các biến thể như Weighted KNN, Distance metrics khác
+\item \textbf{Ứng dụng:} Xây dựng hệ thống gợi ý đơn giản cho bản thân
+\end{enumerate}
+
+KNN có thể không phải là thuật toán mạnh nhất, nhưng nó là một nền tảng tuyệt vời để hiểu về học máy. Một khi bạn thành thạo KNN, bạn đã có được tư duy cơ bản để chinh phục những thuật toán phức tạp hơn trong hành trình khám phá AI!
