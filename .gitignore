@@ -196,6 +196,7 @@ cython_debug/
 
 # My project
 data
+docs
 documents
 log.*
 *.log
