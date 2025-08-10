@@ -45,10 +45,6 @@ class DocumentProcessor:
     # ===== Text helpers =====
     @staticmethod
     def _collect_block_text(block: Dict[str, Any], join_with: str = " ") -> str:
-        """
-        Gom text của 1 block (từ spans) thành chuỗi.
-        join_with: " " cho nhận diện; "" cho đếm ký tự chính xác.
-        """
         spans_text: List[str] = []
         for line in block.get("lines", []):
             for span in line.get("spans", []):
@@ -57,27 +53,45 @@ class DocumentProcessor:
                     spans_text.append(txt)
         return join_with.join(spans_text) if spans_text else ""
 
-    def _detect_watermark(self, text: str) -> bool:
-        """Phát hiện watermark trong văn bản (regex, bỏ qua hoa/thường)."""
-        if not text:
-            return False
+    def _detect_watermark(self, page) -> bool:
+        """Phát hiện watermark dạng text hoặc ảnh"""
+        # 1 - image
+        try:
+            img_list = page.get_images(full=True)
+            page_area = page.rect.width * page.rect.height or 1.0
+            for img in img_list:
+                xref = img[0]
+                pix = None
+                try:
+                    pix = fitz.Pixmap(page.parent, xref)
+                    img_area = (pix.width or 0) * (pix.height or 0)
+                    if img_area / page_area > 0.8:  # ảnh phủ ≥ 80% trang
+                        return True
+                finally:
+                    if pix is not None:
+                        del pix
+        except Exception as e:
+            logger.debug(f"Watermark image check error: {e}")
+
+        # 2 - text (giữ nguyên phần cũ)
+        text = page.get_text("text") or ""
         for pattern in self.cfg.watermark_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
+            if re.search(pattern, text, re.IGNORECASE | re.DOTALL):
                 return True
+
         return False
 
     # ===== Signature heuristics =====
     def _is_signature_block(self, block: Dict[str, Any], page_rect: fitz.Rect) -> bool:
-        """Heuristics nhận diện khối chữ ký/tem số hoá."""
+        """Heuristic nhận diện block chữ ký"""
         if block.get("type", 0) != 0:
-            return False  # chỉ xét text
+            return False
 
-        x0, y0, x1, y1 = block.get("bbox", [0, 0, 0, 0])
-        block_area = max(0, (x1 - x0) * (y1 - y0))
-        page_area  = max(1, page_rect.width * page_rect.height)
-        area_ratio = block_area / page_area
+        block_text = self._collect_block_text(block, join_with=" ").strip()
 
-        block_text = self._collect_block_text(block, join_with=" ")
+        # Bỏ qua số trang
+        if re.match(r"^\d+$", block_text) or re.match(r"^trang\s*\d+(/\d+)?$", block_text, re.IGNORECASE):
+            return False
 
         # 1) Keyword-based
         if block_text:
@@ -86,21 +100,36 @@ class DocumentProcessor:
                     return True
 
         # 2) Vị trí
+        x0, y0, x1, y1 = block.get("bbox", [0, 0, 0, 0])
         page_h = page_rect.height
         page_w = page_rect.width
         in_bottom = (y0 >= (1.0 - self.cfg.signature_bottom_ratio) * page_h)
-        in_right  = (x0 >= (1.0 - self.cfg.signature_right_ratio)  * page_w)
+        in_right = (x0 >= (1.0 - self.cfg.signature_right_ratio) * page_w)
 
         # 3) Kích thước
-        very_small = (area_ratio <= self.cfg.signature_area_ratio)
+        block_area = max(0, (x1 - x0) * (y1 - y0))
+        page_area = max(1, page_w * page_h)
+        very_small = (block_area / page_area <= self.cfg.signature_area_ratio)
 
         # 4) Độ ngắn gọn
         num_lines = len(block.get("lines", []))
         num_chars = len(block_text)
         compact_text = (num_chars <= 200 and num_lines <= 10)
 
+        # 5) Có ảnh scan chữ ký trong block không
+        has_image_in_block = False
+        try:
+            img_list = block.get("image", [])
+            if img_list:  # Nếu parser cung cấp thông tin ảnh theo block
+                has_image_in_block = True
+        except:
+            pass
+
         if (in_bottom or in_right) and very_small and compact_text:
-            return True
+            if has_image_in_block:
+                return True
+            else:
+                return False
 
         return False
 
@@ -112,51 +141,43 @@ class DocumentProcessor:
         - filtered_chars: ký tự sau khi loại khối signature-like
         - coverage_ratio: tổng diện tích khối non-signature / tổng diện tích các trang
         - blocks_non_sign: số khối non-signature
-        - has_watermark: phát hiện watermark qua plain text mỗi trang
-        - has_signature: tồn tại ít nhất 1 khối signature-like
+        - like_watermark: phát hiện watermark
+        - like_signature: tồn tại ít nhất 1 khối signature-like
         """
-        doc = fitz.open(pdf_path)
-        total_chars = 0
-        filtered_chars = 0
+        total_chars = filtered_chars = 0
         total_non_sign_area = 0.0
         blocks_non_sign = 0
-        has_watermark = False
+        like_watermark = like_signature = False
         total_page_area = 0.0
-        has_signature = False
 
-        for page_index, page in enumerate(doc):
-            page_rect = page.rect
-            total_page_area += max(1.0, page_rect.width * page_rect.height)
+        # Dùng context manager để đảm bảo đóng file
+        with fitz.open(pdf_path) as doc:
+            for page_index, page in enumerate(doc):
+                page_rect = page.rect
+                total_page_area += max(1.0, page_rect.width * page_rect.height)
 
-            tdict = page.get_text("dict")
-            page_text = page.get_text("text") or ""
-            if self._detect_watermark(page_text):
-                has_watermark = True
+                if self._detect_watermark(page):
+                    like_watermark = True
 
-            for block in tdict.get("blocks", []):
-                if block.get("type", 0) != 0:
-                    continue
+                tdict = page.get_text("dict")
+                for block in tdict.get("blocks", []):
+                    if block.get("type", 0) != 0:
+                        continue
+                    block_text = self._collect_block_text(block, join_with="")
+                    if not block_text:
+                        continue
 
-                block_text = self._collect_block_text(block, join_with="")
-                if not block_text:
-                    continue
+                    total_chars += len(block_text)
 
-                total_chars += len(block_text)
+                    if self._is_signature_block(block, page_rect):
+                        like_signature = True
+                        continue
 
-                # Nhận diện chữ ký
-                if self._is_signature_block(block, page_rect):
-                    has_signature = True
-                    continue
-
-                # Non-signature block -> giữ lại
-                filtered_chars += len(block_text)
-
-                x0, y0, x1, y1 = block.get("bbox", [0, 0, 0, 0])
-                block_area = max(0, (x1 - x0) * (y1 - y0))
-                total_non_sign_area += block_area
-                blocks_non_sign += 1
-
-        doc.close()
+                    filtered_chars += len(block_text)
+                    x0, y0, x1, y1 = block.get("bbox", [0, 0, 0, 0])
+                    block_area = max(0, (x1 - x0) * (y1 - y0))
+                    total_non_sign_area += block_area
+                    blocks_non_sign += 1
 
         coverage_ratio = (total_non_sign_area / total_page_area) if total_page_area > 0 else 0.0
 
@@ -165,43 +186,40 @@ class DocumentProcessor:
             "filtered_chars": filtered_chars,
             "coverage_ratio": coverage_ratio,
             "blocks_non_sign": blocks_non_sign,
-            "has_watermark": has_watermark,
-            "has_signature": has_signature,
+            "like_watermark": like_watermark,
+            "like_signature": like_signature,
         }
+
 
     def _is_pdf_text_based(self, pdf_path: str) -> Tuple[bool, bool, bool]:
         """
         Quyết định text-based với lọc chữ ký/tem số hoá.
-        Trả về (is_text_based, has_watermark, has_signature).
+        Trả về (is_text_based, like_watermark, like_signature).
         """
         if not pdf_path:
             return (False, False, False)
-
         if pdf_path in self.cache_pdf_results:
             return self.cache_pdf_results[pdf_path]
 
         try:
             feats = self._extract_text_features(pdf_path)
-
             is_text_based = (
                 (feats["filtered_chars"] >= self.cfg.text_threshold) and
                 (feats["coverage_ratio"] >= self.cfg.min_coverage_ratio or
                  feats["blocks_non_sign"] >= self.cfg.min_blocks_non_sign)
             )
-
-            result = (is_text_based, feats["has_watermark"], feats["has_signature"])
+            result = (is_text_based, feats["like_watermark"], feats["like_signature"])
             self.cache_pdf_results[pdf_path] = result
             return result
-
         except Exception as e:
             logger.error(f"Error checking PDF {pdf_path}: {e}", exc_info=True)
             return (False, False, False)
-
+        
     # ===== Validation =====
     def _validate_input(self, input_data) -> bool:
         """Xác thực & chuẩn hoá đường dẫn của input.
-        - Lỗi ở cấp entry (mất cấu trúc) → luôn trả False.
-        - Lỗi ở cấp document: nếu skip_invalid_docs=True → log warning và bỏ qua doc.
+        - Lỗi cấp entry (mất cấu trúc) → trả False.
+        - Lỗi cấp document: luôn loại doc nếu path không tồn tại (kể cả khi skip_invalid_docs=False).
         """
         if not isinstance(input_data, list):
             logger.error("Input data must be a list of dictionaries.")
@@ -231,14 +249,15 @@ class DocumentProcessor:
                 logger.error(f"Entry {entry_idx} has invalid documents field: must be a list")
                 return False
 
-            # Danh sách doc hợp lệ (nếu skip mode thì bỏ doc lỗi)
+            # Danh sách doc hợp lệ (luôn dùng sau cùng)
             valid_docs = []
 
             for doc_idx, doc in enumerate(entry.get("documents", [])):
                 if not isinstance(doc, dict):
                     logger.error(f"Document {doc_idx} in entry {entry_idx} is not a dictionary.")
                     if not self.cfg.skip_invalid_docs:
-                        return False
+                        # vẫn loại bỏ doc sai kiểu, không dừng toàn bộ
+                        pass
                     continue
 
                 # Kiểm tra field bắt buộc
@@ -246,7 +265,8 @@ class DocumentProcessor:
                 if missing_fields:
                     logger.error(f"Document {doc_idx} in entry {entry_idx} missing fields: {missing_fields}")
                     if not self.cfg.skip_invalid_docs:
-                        return False
+                        # vẫn loại bỏ doc thiếu field, không dừng toàn bộ
+                        pass
                     continue
 
                 # Kiểm tra format
@@ -256,8 +276,7 @@ class DocumentProcessor:
                     logger.warning(
                         f"Skipping unsupported format in entry {entry_idx} doc {doc_idx}: {Path(doc_path_raw).name}"
                     )
-                    if not self.cfg.skip_invalid_docs:
-                        return False
+                    # luôn bỏ qua doc không hỗ trợ
                     continue
 
                 # Chuẩn hoá đường dẫn
@@ -265,18 +284,23 @@ class DocumentProcessor:
                 resolved = resolve_doc_path(doc_path_raw, self.cfg)
                 doc["documentPath"] = resolved
 
-                # Cảnh báo nếu file không tồn tại
-                if doc_path_raw and not os.path.exists(resolved):
-                    logger.warning(
+                # Nếu file không tồn tại → luôn bỏ
+                if not resolved or not os.path.exists(resolved):
+                    msg = (
                         f"Document {doc_idx} in entry {entry_idx} path not found. "
                         f"Given='{doc_path_raw}' -> Resolved='{resolved}'"
                     )
+                    if not self.cfg.skip_invalid_docs:
+                        logger.error(msg)
+                        raise ValueError(msg)
+                    else:
+                        logger.error(msg)
+                    continue
 
                 valid_docs.append(doc)
 
-            # Nếu skip mode → chỉ giữ doc hợp lệ
-            if self.cfg.skip_invalid_docs:
-                entry["documents"] = valid_docs
+            # QUAN TRỌNG: luôn gán lại danh sách đã lọc (kể cả khi skip_invalid_docs=False)
+            entry["documents"] = valid_docs
 
         return True
 
@@ -311,12 +335,12 @@ class DocumentProcessor:
 
                         try:
                             if ext_no_dot == "pdf":
-                                is_text_based, has_watermark, has_signature = self._is_pdf_text_based(str(file_path))
+                                is_text_based, like_watermark, like_signature = self._is_pdf_text_based(str(file_path))
                                 requires_ocr = not is_text_based
                             else:
                                 is_text_based = False
-                                has_watermark = False
-                                has_signature = False
+                                like_watermark = False
+                                like_signature = False
                                 requires_ocr = ext_no_dot in ["jpg", "png", "tiff"]
 
                             doc_info = {
@@ -325,8 +349,8 @@ class DocumentProcessor:
                                 "documentPath": str(file_path),
                                 "requiresOCR": requires_ocr,
                                 "metadata": {
-                                    "hasWatermark": has_watermark,
-                                    "hasSignature": has_signature
+                                    "likeWatermark": like_watermark,
+                                    "likeSignature": like_signature
                                 },
                             }
                             documents.append(doc_info)
@@ -334,7 +358,7 @@ class DocumentProcessor:
                             logger.info(
                                 f"[ZIP] Processed child doc | customerID={customer_id} | parentID={document_id} | "
                                 f"file={file_path.name} | format={ext_no_dot} | requiresOCR={requires_ocr} | "
-                                f"hasWatermark={has_watermark} | hasSignature={has_signature}"
+                                f"likeWatermark={like_watermark} | likeSignature={like_signature}"
                             )
                         except Exception as e:
                             logger.error(
@@ -398,12 +422,12 @@ class DocumentProcessor:
                         )
                     else:
                         if doc_format == "pdf":
-                            is_text_based, has_watermark, has_signature = self._is_pdf_text_based(doc_path)
+                            is_text_based, like_watermark, like_signature = self._is_pdf_text_based(doc_path)
                             requires_ocr = not is_text_based
                         else:
                             is_text_based = False
-                            has_watermark = False
-                            has_signature = False
+                            like_watermark = False
+                            like_signature = False
                             requires_ocr = doc_format in ["jpg", "png", "tiff"]
 
                         doc_info = {
@@ -412,15 +436,15 @@ class DocumentProcessor:
                             "documentPath": doc_path,
                             "requiresOCR": requires_ocr,
                             "metadata": {
-                                "hasWatermark": has_watermark,
-                                "hasSignature": has_signature
+                                "likeWatermark": like_watermark,
+                                "likeSignature": like_signature
                             },
                         }
                         documents.append(doc_info)
 
                         logger.info(
                             f"Finish doc | customerID={customer_id} | docID={doc_id} | "
-                            f"requiresOCR={requires_ocr} | hasWatermark={has_watermark} | hasSignature={has_signature}"
+                            f"requiresOCR={requires_ocr} | likeWatermark={like_watermark} | likeSignature={like_signature}"
                         )
 
                 except Exception as e:
