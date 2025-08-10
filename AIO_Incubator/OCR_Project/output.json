@@ -1,0 +1,116 @@
+[
+  {
+    "customerID": "CUST-00123",
+    "transactionID": "SCAN-20240718-a8f5-4b3f-9e7d-1c2b3a4f5e6d",
+    "documents": [
+      {
+        "documentID": "DOC-HD-98765",
+        "documentType": "thông tư",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-TT-98765.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": false
+        }
+      },
+      {
+        "documentID": "DOC-QD-54321",
+        "documentType": "báo cáo",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-RP-54321.pdf",
+        "requiresOCR": true,
+        "metadata": {
+          "likeWatermark": true,
+          "likeSignature": true
+        }
+      }
+    ]
+  },
+  {
+    "customerID": "CUST-00456",
+    "transactionID": "7c5453cd-ebf1-4363-96ea-27bd1dd4fd86",
+    "documents": [
+      {
+        "documentID": "DOC-CV-11223",
+        "documentType": "hướng dẫn",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-HD-11223.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": true,
+          "likeSignature": false
+        }
+      },
+      {
+        "documentID": "DOC-PL-33445-HD_kinhte",
+        "documentType": "phụ lục",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/data/unzipped/CUST-00456/DOC-PL-33445/HD_kinhte.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": true
+        }
+      },
+      {
+        "documentID": "DOC-PL-33445-HD_01234",
+        "documentType": "phụ lục",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/data/unzipped/CUST-00456/DOC-PL-33445/HD_01234.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": true,
+          "likeSignature": true
+        }
+      }
+    ]
+  },
+  {
+    "customerID": "CUST-00999",
+    "transactionID": "UPLOAD-20240801-7c3d-4b9b-bf66-8a2c0c8a9d4f",
+    "documents": [
+      {
+        "documentID": "DOC-BB-99887",
+        "documentType": "biên bản",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-BB-99887.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": false
+        }
+      },
+      {
+        "documentID": "DOC-RP-20245",
+        "documentType": "nghị định",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-RP-20245.png",
+        "requiresOCR": true,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": false
+        }
+      }
+    ]
+  },
+  {
+    "customerID": "CUST-00777",
+    "transactionID": "b9f042fd-ca6a-45a3-a55d-73c4f8cebfea",
+    "documents": [
+      {
+        "documentID": "DOC-IV-77777",
+        "documentType": "hóa đơn",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-IV-77777.pdf",
+        "requiresOCR": true,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": false
+        }
+      },
+      {
+        "documentID": "DOC-HS-88888",
+        "documentType": "hồ sơ",
+        "documentPath": "/Users/tommy/Study/AIO2025/AIO_Incubator/OCR_Project/docs/DOC-HS-88888.pdf",
+        "requiresOCR": false,
+        "metadata": {
+          "likeWatermark": false,
+          "likeSignature": true
+        }
+      }
+    ]
+  }
+]

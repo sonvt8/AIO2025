@@ -1,0 +1,84 @@
+[
+  {
+    "type": "scan",
+    "customerID": "CUST-00123",
+    "transactionID": "SCAN-20240718-a8f5-4b3f-9e7d-1c2b3a4f5e6d",
+    "documents": [
+      {
+        "documentID": "DOC-HD-98765",
+        "documentType": "thông tư",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-TT-98765.pdf"
+      },
+      {
+        "documentID": "DOC-QD-54321",
+        "documentType": "báo cáo",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-RP-54321.pdf"
+      }
+    ]
+  },
+  {
+    "type": "email",
+    "customerID": "CUST-00456",
+    "transactionID": null,
+    "documents": [
+      {
+        "documentID": "DOC-CV-11223",
+        "documentType": "hướng dẫn",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-HD-11223.pdf"
+      },
+      {
+        "documentID": "DOC-PL-33445",
+        "documentType": "phụ lục",
+        "documentFormat": "zip",
+        "documentPath": "phuluc.zip"
+      }
+    ]
+  },
+  {
+    "type": "scan",
+    "customerID": "CUST-00999",
+    "transactionID": "UPLOAD-20240801-7c3d-4b9b-bf66-8a2c0c8a9d4f",
+    "documents": [
+      {
+        "documentID": "DOC-HD-12345",
+        "documentType": "biên bản",
+        "documentFormat": "docx",
+        "documentPath": "DOC-BB-12345.docx"
+      },
+      {
+        "documentID": "DOC-BB-99887",
+        "documentType": "biên bản",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-BB-99887.pdf"
+      },
+      {
+        "documentID": "DOC-RP-20245",
+        "documentType": "nghị định",
+        "documentFormat": "png",
+        "documentPath": "DOC-RP-20245.png"
+      }
+    ]
+  },
+  {
+    "type": "email",
+    "customerID": "CUST-00777",
+    "transactionID": "",
+    "documents": [
+      {
+        "documentID": "DOC-IV-77777",
+        "documentType": "hóa đơn",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-IV-77777.pdf"
+      },
+      {
+        "documentID": "DOC-HS-88888",
+        "documentType": "hồ sơ",
+        "documentFormat": "pdf",
+        "documentPath": "DOC-HS-88888.pdf"
+      }
+    ]
+  }
+]
