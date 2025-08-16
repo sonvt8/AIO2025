@@ -1,0 +1,229 @@
+\section{Giới thiệu: Khám phá Decision Tree}
+Decision Tree (Cây quyết định) là một trong những thuật toán nền tảng và dễ hiểu nhất trong lĩnh vực học máy. Hình dung đơn giản: Decision Tree mô phỏng quá trình con người đặt câu hỏi và đưa ra quyết định dựa trên các thuộc tính quan sát được. Khi học về cây quyết định, bạn sẽ thấy cách dữ liệu được phân loại từng bước, gần gũi như cách chúng ta suy nghĩ – từ tổng quát đến chi tiết, đến khi ra quyết định cuối cùng~\cite{al_2025_a}.
+
+\section{Quy tắc hoạt động của Decision Tree}
+\subsection{Cấu trúc cây quyết định}
+Một cây quyết định bao gồm:
+\begin{itemize}
+    \item \textbf{Nút gốc (Root Node):} Nút đầu tiên chứa toàn bộ dữ liệu.
+    \item \textbf{Nút trong (Internal Node):} Đại diện cho các điều kiện hoặc câu hỏi trên từng thuộc tính.
+    \item \textbf{Nút lá (Leaf Node):} Cho ta kết quả cuối cùng sau các phép phân tách.
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/decision-tree-structure.png}
+    \caption{Cấu trúc một cây quyết định đơn giản.}
+    \label{fig:dt-structure}
+\end{figure}
+\subsection{Cách thuật toán chọn nhánh (splitting)}
+Mục đích chia nhánh là làm các nút lá càng “thuần khiết” càng tốt, tức dữ liệu trong mỗi nút có cùng một lớp (hoặc giá trị dự đoán) nhiều nhất có thể.
+
+\textbf{Các phép đo mức độ thuần khiết:}
+\begin{itemize}
+    \item \textbf{Gini impurity:} Đo lường xác suất một mẫu bị gán nhãn sai nếu chọn ngẫu nhiên.
+        \[
+        Gini(D) = 1 - \sum_{i=1}^{k} p_i^2
+        \]
+    \item \textbf{Entropy:} Đo lường tính ngẫu nhiên trong dữ liệu.
+        \[
+        H(X) = -\sum_{i=1}^c p_i \log_2 p_i
+        \]
+\end{itemize}
+Thông qua từng bước tách, thuật toán sẽ chọn thuộc tính giúp giảm độ không thuần khiết nhiều nhất.
+
+\section{Ứng dụng Decision Tree: Phân loại thực tế}
+Để hiểu rõ hơn về cách Decision Tree hoạt động, chúng ta hãy áp dụng nó vào một ví dụ thực tế. Giả sử chúng ta có một bộ dữ liệu về hành vi của khách hàng tiềm năng và muốn dự đoán liệu họ có đăng ký khóa học hay không. Dưới đây là bộ dữ liệu chi tiết hơn được sử dụng để xây dựng cây quyết định trong phần thực hành Python.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{ID} & \textbf{Giờ xem} & \textbf{Số click} & \textbf{Webinar} & \textbf{Kết quả} \\
+\hline
+1 & 1.5 & 3 & Có & Có \\
+2 & 2.0 & 1 & Không & Không \\
+3 & 0.5 & 5 & Có & Có \\
+4 & 3.0 & 2 & Không & Không \\
+5 & 1.0 & 4 & Có & Có \\
+6 & 2.5 & 1 & Không & Không \\
+7 & 1.8 & 4 & Có & Có \\
+8 & 2.4 & 2 & Không & Có \\
+9 & 2.9 & 3 & Có & Không \\
+10 & 1.2 & 2 & Có & Không \\
+11 & 0.8 & 3 & Không & Không \\
+12 & 2.6 & 5 & Có & Có \\
+13 & 0.7 & 2 & Không & Không \\
+\hline
+\end{tabular}
+\caption{Bộ dữ liệu khách hàng mở rộng được dùng trong ví dụ này}
+\label{tab:extended_data}
+\end{table}
+
+\subsection{Diễn giải quá trình phân tách của cây quyết định}
+
+\textbf{Bước 1: Tính Gini Impurity của Nút Gốc}
+
+Nút gốc đại diện cho toàn bộ 13 mẫu dữ liệu. Chúng ta đếm được 7 khách hàng có kết quả \textbf{Không} (lớp 0) và 6 khách hàng có kết quả \textbf{Có} (lớp 1).
+
+Chúng ta sử dụng công thức Gini Impurity để đo lường độ không thuần khiết của nút này.
+
+\[
+Gini_{\text{root}} = 1 - \left( \left(\frac{7}{13}\right)^2 + \left(\frac{6}{13}\right)^2 \right) = 1 - \left( \frac{49}{169} + \frac{36}{169} \right) = 1 - \frac{85}{169} \approx 0.497
+\]
+
+Giá trị $Gini \approx 0.497$ khớp với thông tin hiển thị tại nút gốc trên hình ảnh cây quyết định.
+
+\textbf{Bước 2: Chọn thuộc tính phân tách tối ưu: $\text{so\_click} \leq 3.5$}
+
+Thuật toán sẽ đánh giá tất cả các thuộc tính (\text{gio\_xem}, \text{so\_click}, \text{webinar}) để tìm ngưỡng phân tách giúp giảm Gini Impurity nhiều nhất.
+
+Cây quyết định đã chọn ngưỡng $\text{so\_click} \leq 3.5$ là tối ưu nhất.
+
+\begin{itemize}
+    \item \textbf{Nhánh bên trái (điều kiện True):}
+    \begin{itemize}
+        \item Bao gồm 9 mẫu dữ liệu có $\text{so\_click} \leq 3.5$.
+        \item Phân bố: 7 mẫu thuộc lớp \textbf{Không} và 2 mẫu thuộc lớp \textbf{Có}.
+        \item Gini Impurity của nhánh này được tính là:
+        \[
+        Gini_{\text{left}} = 1 - \left( \left(\frac{7}{9}\right)^2 + \left(\frac{2}{9}\right)^2 \right) = 1 - \left( \frac{49}{81} + \frac{4}{81} \right) = 1 - \frac{53}{81} \approx 0.346
+        \]
+    \end{itemize}
+    \item \textbf{Nhánh bên phải (điều kiện False):}
+    \begin{itemize}
+        \item Bao gồm 4 mẫu dữ liệu có $\text{so\_click} > 3.5$.
+        \item Phân bố: 0 mẫu thuộc lớp \textbf{Không} và 4 mẫu thuộc lớp \textbf{Có}.
+        \item Gini Impurity của nhánh này là:
+        \[
+        Gini_{\text{right}} = 1 - \left( \left(\frac{0}{4}\right)^2 + \left(\frac{4}{4}\right)^2 \right) = 1 - (0+1) = 0
+        \]
+    \end{itemize}
+\end{itemize}
+
+\textbf{Bước 3: Tiếp tục phân tách}
+
+Vì nhánh bên trái ($Gini \approx 0.346$) vẫn chưa thuần khiết, quá trình phân tách tiếp tục. Thuật toán tìm ra điểm phân tách tối ưu tiếp theo là $\text{gio\_xem} \leq 1.35$. Quá trình này sẽ lặp lại cho đến khi các nút lá đạt Gini Impurity bằng 0 hoặc đạt đến giới hạn độ sâu của cây (trong trường hợp này là $\mathtt{max\_depth}=3$ như đã thiết lập trong mã nguồn).
+
+\section{Thực hành với Python}
+Minh hoạ xây dựng cây quyết định bằng scikit-learn và trực quan hoá.
+
+\begin{lstlisting}[language=Python, caption={Xây dựng Decision Tree với scikit-learn}]
+import pandas as pd
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+import matplotlib.pyplot as plt
+
+data = {
+    'gio_xem': [1.5, 2.0, 0.5, 3.0, 1.0, 2.5, 1.8, 2.4, 2.9, 1.2, 0.8, 2.6, 0.7],
+    'so_click': [3, 1, 5, 2, 4, 1, 4, 2, 3, 2, 3, 5, 2],
+    'webinar': ['Co', 'Khong', 'Co', 'Khong', 'Co', 'Khong', 'Co', 'Khong', 'Co', 'Co', 'Khong', 'Co', 'Khong'],
+    'ket_qua': ['Co', 'Khong', 'Co', 'Khong', 'Co', 'Khong', 'Co', 'Co', 'Khong', 'Khong', 'Khong', 'Co', 'Khong']
+}
+df = pd.DataFrame(data)
+df['webinar'] = df['webinar'].map({'Co': 1, 'Khong': 0})
+df['ket_qua'] = df['ket_qua'].map({'Co': 1, 'Khong': 0})
+X = df[['gio_xem', 'so_click', 'webinar']]
+y = df['ket_qua']
+
+clf = DecisionTreeClassifier(max_depth=3, criterion='gini', random_state=42)
+clf.fit(X, y)
+
+plt.figure(figsize=(14,8))
+plot_tree(
+    clf,
+    feature_names=['gio_xem', 'so_click', 'webinar'],
+    class_names=['Khong','Co'],
+    filled=True,
+    rounded=True,
+    fontsize=10
+)
+plt.title("Decision tree: customer classification with many branches", fontsize=14)
+plt.tight_layout()
+plt.show()
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/dt-python-example.png}
+    \caption{Trực quan cây quyết định trên dữ liệu khách hàng.}
+    \label{fig:dt-python-example}
+\end{figure}
+
+\section{Ưu điểm và hạn chế của Decision Tree}
+\subsection{Ưu điểm}
+\begin{itemize}
+    \item Dễ hiểu, dễ diễn giải: Sơ đồ cây trực quan hoá logic ra quyết định.
+    \item Xử lý được cả dữ liệu số và phân loại mà không cần nhiều bước tiền xử lý.
+    \item Áp dụng cho cả phân loại lẫn hồi quy.
+\end{itemize}
+
+\subsection{Hạn chế}
+\begin{itemize}
+    \item Dễ bị overfitting với dữ liệu nhiễu hoặc nhỏ – mô hình quá khớp với dữ liệu huấn luyện.
+    \item Ít ổn định: Chỉ cần thay đổi nhỏ trong dữ liệu có thể tạo ra cây rất khác nhau.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/overfitting.png}
+    \caption{Minh hoạ vấn đề Overfitting: cây quá phức tạp học thuộc dữ liệu huấn luyện.}
+    \label{fig:overfitting}
+\end{figure}
+
+\section{Cách khắc phục overfitting}
+Để kiểm soát độ phức tạp cây, có hai kỹ thuật chính:
+\begin{itemize}
+    \item \textbf{Pre-Pruning:} Đặt giới hạn cho cây khi xây dựng bằng cách dùng các tham số như $\mathtt{max\_depth}$, $\mathtt{min\_samples\_leaf}$, $\mathtt{min\_samples\_split}$.
+    \item \textbf{Post-Pruning:} Xây cây hoàn chỉnh rồi cắt bớt các nhánh không cần thiết dựa trên kiểm thử.
+\end{itemize}
+\textbf{Ví dụ các tham số khi huấn luyện:}
+\begin{lstlisting}[language=Python]
+clf = DecisionTreeClassifier(max_depth=3, min_samples_leaf=2)
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{images/pruning-illustration.png}
+    \caption{Hình minh hoạ cây quyết định trước và sau khi cắt tỉa.}
+    \label{fig:pruning}
+\end{figure}
+
+\section{Ứng dụng đa lĩnh vực}
+Decision Tree được sử dụng rộng rãi~\cite{al_2025_a}:
+\begin{enumerate}
+    \item \textbf{Y tế:} Hỗ trợ chẩn đoán bệnh từ các thuộc tính lâm sàng.
+    \item \textbf{Tài chính ngân hàng:} Đánh giá tín dụng, dự đoán khả năng vỡ nợ.
+    \item \textbf{Giáo dục:} Phân loại học viên tiềm năng, dự báo kết quả học tập.
+\end{enumerate}
+
+\section{So sánh Decision Tree với các thuật toán phân loại khác}
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Thuật toán} & \textbf{Mức độ trực quan} & \textbf{Hiệu năng với dữ liệu lớn} & \textbf{Độ dễ dùng} \\
+\hline
+Decision Tree & Rất cao & TB & Rất dễ \\
+KNN & TB & Thấp & TB \\
+Logistic Regression & TB & Cao & TB \\
+\hline
+\end{tabular}
+\caption{So sánh Decision Tree với KNN, Logistic Regression}
+\end{table}
+\textbf{Nhận xét:}
+- Decision Tree có ưu điểm lớn về tính trực quan và dễ hiểu nhất cho người mới học.
+
+\section{Các phương pháp nâng cấp: Ensemble cơ bản}
+\subsection{Giới thiệu Random Forest}
+Random Forest kết hợp nhiều cây quyết định nhỏ (cây con), mỗi cây huấn luyện trên một tập dữ liệu con (bagging). Khi dự đoán, các cây cùng “bỏ phiếu”, kết quả là đa số phiếu hoặc trung bình. Phương pháp này giúp giảm overfitting, tăng tính ổn định \& chính xác so với cây đơn lẻ~\cite{breiman2001random}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/randomforest-illustration.png}
+    \caption{Minh hoạ Random Forest và quá trình “bỏ phiếu” tổng hợp kết quả.}
+\end{figure}
+
+\section{Giải thích mô hình: Tại sao Decision Tree “interpretable”}
+Cấu trúc Decision Tree cho phép bạn đọc dễ dàng lý giải vì sao một dự đoán được đưa ra (nhờ các bộ quy tắc từ gốc tới lá). Tính minh bạch này đặc biệt quan trọng trong các ngành tài chính, y tế, nơi cần giải thích rõ quyết định cho người dùng. Phương pháp hiện đại như SHAP, LIME còn cho phép giải thích cả các mô hình phức tạp hơn dựa trên nguyên lý Decision Tree.
+
+\section{Tổng kết}
+Decision Tree là bước khởi đầu lý tưởng cho người học AI. Bạn dễ dàng vừa học lý thuyết, vừa thực hành. Qua các ví dụ, bạn có thể ứng dụng vào nhiều lĩnh vực. Nắm vững Decision Tree sẽ là nền móng vững chắc để tiếp cận các mô hình phát triển hơn như Random Forest\cite{breiman2001random}, Gradient Boosting\cite{chen2016xgboost}.
