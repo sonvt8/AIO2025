@@ -1,0 +1,49 @@
+% Các gói toán học, đồ họa, bảng biểu
+\usepackage{amsmath, amssymb, graphicx, float}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{booktabs} % Cho bảng biểu đẹp hơn
+
+% Các gói định dạng văn bản
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{setspace}
+\usepackage{microtype}
+
+% Thiết lập giãn dòng 1.5
+\onehalfspacing
+\tolerance=1000
+\emergencystretch=3em
+
+% Thiết lập cho các khối mã nguồn (sử dụng gói listings)
+\usepackage{listings}
+
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{keywordblue}{rgb}{0.0, 0.0, 0.9}
+
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keywordblue},
+    commentstyle=\color{codegreen},
+    stringstyle=\color{codepurple},
+    backgroundcolor=\color{backcolour},
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    frame=single,
+    breaklines=true,
+    inputencoding=utf8,
+    columns=fullflexible,
+    upquote=true,
+    captionpos=b,
+    showspaces=false,
+    showstringspaces=false,
+    tabsize=2
+}
+
+% Đổi tên tiêu đề của danh sách mã nguồn sang tiếng Việt
+\renewcommand{\lstlistingname}{Mã nguồn}
+\renewcommand{\lstlistlistingname}{Danh sách mã nguồn}

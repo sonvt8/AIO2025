@@ -1,0 +1,274 @@
+\section{Lời Dẫn Nhập}
+
+Trong thế giới Trí tuệ Nhân tạo, khi nhắc đến dữ liệu phi cấu trúc như hình ảnh hay ngôn ngữ, Deep Learning dường như là một vị vua không ngai. Tuy nhiên, khi bước vào địa hạt của dữ liệu dạng bảng (tabular data) – loại dữ liệu phổ biến nhất trong các bài toán kinh doanh, từ dự báo tài chính, phân tích rủi ro đến hành vi khách hàng – một họ thuật toán khác lại vươn lên chiếm lĩnh vị thế thống trị: các mô hình cây (Tree-based Models).
+
+Một nghiên cứu quy mô lớn năm 2022 của Grinsztajn và các cộng sự đã chỉ ra rằng, trên hàng chục bộ dữ liệu dạng bảng, các mô hình cây tăng cường như XGBoost thường xuyên cho hiệu suất vượt trội so với cả những kiến trúc Deep Learning phức tạp nhất~\cite{grinsztajn2022why}. Tại sao lại có sự ưu ái này? Điều gì đã tạo nên sức mạnh đáng kinh ngạc của chúng?
+
+Bài viết này sẽ đưa bạn vào một cuộc hành trình khám phá sự tiến hóa của các thuật toán cây. Chúng ta sẽ bắt đầu từ "tổ tiên" sơ khai nhất là \textbf{Cây Quyết Định (Decision Tree)}, chứng kiến cách nó khắc phục điểm yếu thông qua "trí tuệ đám đông" của \textbf{Random Forest}, học cách "sửa sai" một cách thông minh qua các thế hệ \textbf{Boosting}, và cuối cùng đạt đến đỉnh cao với \textbf{XGBoost} – nhà vô địch của các cuộc thi khoa học dữ liệu.
+
+Xuyên suốt hành trình, chúng ta sẽ sử dụng một ví dụ duy nhất – một tập dữ liệu con về \textbf{Dự đoán Bệnh tim} – để mổ xẻ cách từng thuật toán suy nghĩ và đưa ra quyết định.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/evolution.png}
+    \caption{Sự tiến hóa của các thuật toán cây từ Decision Tree đến XGBoost.}
+    \label{fig:evolution}
+\end{figure}
+
+\section{Ví Dụ Xuyên Suốt: Tập Dữ Liệu Bệnh Tim}
+
+Để các khái niệm toán học không trở nên khô khan, chúng ta sẽ áp dụng chúng vào một bài toán thực tế. Giả sử chúng ta có một tập dữ liệu nhỏ gồm 8 bệnh nhân, với mục tiêu dự đoán liệu họ có mắc bệnh tim hay không (\texttt{HeartDisease = 1}) dựa trên ba đặc trưng:
+
+\begin{table}[H]
+\centering
+\caption{Tập dữ liệu ví dụ về bệnh tim.}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Bệnh nhân} & \textbf{Age} & \textbf{MaxHeartRate} & \textbf{ChestPain} & \textbf{HeartDisease} \\
+\midrule
+1 & 29 & 202 & 0 & 0 \\
+2 & 48 & 150 & 1 & 1 \\
+3 & 52 & 168 & 1 & 1 \\
+4 & 55 & 145 & 0 & 0 \\
+5 & 58 & 120 & 1 & 1 \\
+6 & 61 & 162 & 0 & 0 \\
+7 & 65 & 148 & 1 & 1 \\
+8 & 68 & 130 & 0 & 1 \\
+\bottomrule
+\end{tabular}
+\\ \small{\textit{Lưu ý: ChestPain = 1 có nghĩa là loại đau ngực có nguy cơ cao, 0 là loại không nguy cơ.}}
+\end{table}
+
+\section{Chương 1: Decision Tree - Nền Móng Của Trực Giác}
+
+\subsection{Ý Nghĩa và Phương Pháp}
+Decision Tree là thuật toán mô phỏng lại quá trình ra quyết định của con người một cách tự nhiên nhất. Nó là một cấu trúc dạng cây, trong đó mỗi nút trong đại diện cho một "câu hỏi" về một đặc trưng, mỗi nhánh đại diện cho một "câu trả lời", và mỗi nút lá đại diện cho một quyết định cuối cùng.
+
+Để xây dựng cây, thuật toán phải trả lời câu hỏi cốt lõi: \textit{Tại mỗi bước, đâu là câu hỏi tốt nhất để chia dữ liệu?} "Tốt nhất" ở đây có nghĩa là phép chia đó tạo ra các nhóm con "thuần khiết" nhất về mặt nhãn. Với bài toán phân loại, độ thuần khiết thường được đo bằng:
+
+\begin{itemize}
+    \item \textbf{Gini Impurity:} Đo lường xác suất một mẫu được chọn ngẫu nhiên từ một nhóm sẽ bị phân loại sai nếu chúng ta gán nhãn cho nó theo phân phối của nhóm đó. Gini càng gần 0, nhóm càng thuần khiết. Công thức là: $Gini = 1 - \sum_{j} p_j^2$.
+    \item \textbf{Information Gain (Dựa trên Entropy):} Đo lường mức độ giảm "hỗn loạn" (Entropy) sau khi thực hiện phép chia. Thuật toán sẽ ưu tiên phép chia nào mang lại Information Gain cao nhất. $H(X) = - \sum_{i=1}^{n} p_i \log_2 p_i$.
+\end{itemize}
+
+\subsection{Áp dụng vào ví dụ}
+Tại nút gốc, chúng ta có 8 bệnh nhân, trong đó 4 người bị bệnh (1) và 4 người không (0). Độ "ô uế" Gini ban đầu của nút gốc là:
+\[ Gini_{root} = 1 - ( (4/8)^2 + (4/8)^2 ) = 1 - (0.25 + 0.25) = 0.5 \]
+Bây giờ, thuật toán thử chia bằng câu hỏi \textbf{MaxHeartRate $\leq$ 156?}:
+\begin{itemize}
+    \item \textbf{Nhánh True ($\leq$ 156):} Gồm bệnh nhân \{2, 4, 5, 7, 8\}. Nhóm này có 4 người bệnh (1) và 1 người không (0).
+    \[ Gini_{true} = 1 - ( (4/5)^2 + (1/5)^2 ) = 1 - (0.64 + 0.04) = 0.32 \]
+    \item \textbf{Nhánh False ($>$ 156):} Gồm bệnh nhân \{1, 3, 6\}. Nhóm này có 1 người bệnh (1) và 2 người không (0).
+    \[ Gini_{false} \approx 1 - ( (1/3)^2 + (2/3)^2 ) \approx 1 - (0.11 + 0.44) = 0.45 \]
+\end{itemize}
+Gini có trọng số sau khi chia:
+\[ Gini_{split} = (5/8) \times Gini_{true} + (3/8) \times Gini_{false} = 0.625 \times 0.32 + 0.375 \times 0.45 \approx 0.369 \]
+Lợi ích (Information Gain) của phép chia này là: $Gini_{root} - Gini_{split} = 0.5 - 0.369 = 0.131$.
+Thuật toán sẽ tính toán tương tự cho tất cả các phép chia khả dĩ khác (ví dụ: Age $\leq$ 56? hay ChestPain = 1?) và chọn phép chia có lợi ích lớn nhất.
+
+\subsection{Ưu và Nhược Điểm}
+\begin{itemize}
+    \item \textbf{Ưu điểm:}
+    \begin{itemize}
+        \item \textbf{Dễ diễn giải:} Đây là mô hình "hộp trắng" (white-box), cho phép chúng ta hiểu rõ logic ra quyết định.
+        \item \textbf{Không yêu cầu chuẩn hóa dữ liệu:} Vì các quyết định dựa trên ngưỡng, việc co giãn thang đo của đặc trưng không ảnh hưởng đến kết quả.
+    \end{itemize}
+    \item \textbf{Nhược điểm:}
+    \begin{itemize}
+        \item \textbf{Phương sai cao (High Variance):} Cây rất nhạy cảm với những thay đổi nhỏ trong dữ liệu huấn luyện. Một vài điểm dữ liệu khác biệt có thể tạo ra một cấu trúc cây hoàn toàn khác.
+        \item \textbf{Dễ bị quá khớp (Overfitting):} Cây có xu hướng phát triển rất phức tạp để khớp hoàn hảo với dữ liệu huấn luyện, dẫn đến việc hoạt động kém trên dữ liệu mới.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Phân Tích Chuyên Sâu}
+Nhược điểm chí mạng về overfitting là động lực chính cho sự ra đời của các thuật toán tiếp theo. Một cây quyết định đơn lẻ giống như một chuyên gia chỉ giỏi về một lĩnh vực rất hẹp và có nhiều định kiến; nó có thể ghi nhớ tất cả các chi tiết của dữ liệu đã thấy nhưng lại bối rối trước các tình huống mới. Để khắc phục điều này và có một quyết định khách quan hơn, chúng ta cần một "hội đồng chuyên gia". Đây chính là ý tưởng đằng sau Random Forest.
+
+\section{Chương 2: Random Forest - Sức Mạnh Của "Hội Đồng Cây"}
+
+\subsection{Ý Tưởng Cải Tiến}
+Random Forest giải quyết bài toán overfitting của Decision Tree bằng cách xây dựng một "khu rừng" gồm hàng trăm, hàng nghìn cây quyết định khác nhau và lấy kết quả dự đoán bằng cách bỏ phiếu theo số đông. Chìa khóa ở đây là làm cho các cây trong rừng trở nên \textbf{đa dạng} và \textbf{ít tương quan} với nhau. Sự đa dạng này được tạo ra bởi hai kỹ thuật cốt lõi.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/random_forest_voting.png}
+    \caption{Random Forest kết hợp dự đoán từ nhiều cây.}
+    \label{fig:random_forest_voting}
+\end{figure}
+
+\subsection{Phương Pháp}
+\begin{itemize}
+    \item \textbf{Bagging (Bootstrap Aggregating):} Mỗi cây trong rừng không được huấn luyện trên toàn bộ dữ liệu gốc. Thay vào đó, nó được huấn luyện trên một mẫu con được lấy ngẫu nhiên \textit{có lặp lại} từ dữ liệu gốc (bootstrap sample). Điều này đảm bảo mỗi cây sẽ "nhìn" vào một phiên bản hơi khác của dữ liệu.
+    \item \textbf{Feature Randomness (Ngẫu nhiên hóa đặc trưng):} Tại mỗi nút của mỗi cây, khi tìm kiếm điểm chia tốt nhất, thuật toán không xem xét tất cả các đặc trưng. Thay vào đó, nó chỉ chọn một \textit{tập con ngẫu nhiên} các đặc trưng. Ví dụ, thay vì xét cả \texttt{Age, MaxHeartRate, ChestPain}, nó có thể chỉ chọn ngẫu nhiên \texttt{Age} và \texttt{ChestPain} để tìm điểm chia tốt nhất.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/bagging_feature_randomness.png}
+    \caption{Kỹ thuật Bagging và Feature Randomness trong Random Forest.}
+    \label{fig:bagging_feature_randomness}
+\end{figure}
+
+Sự ngẫu nhiên kép này (cả trên mẫu và trên đặc trưng) tạo ra một tập hợp các cây rất đa dạng và \textbf{ít tương quan (de-correlated)} với nhau. Mỗi cây sẽ có những điểm mạnh và điểm yếu riêng, nhưng khi kết hợp lại, các sai sót của chúng sẽ tự triệt tiêu lẫn nhau.
+
+\subsection{Ưu và Nhược Điểm}
+\begin{itemize}
+    \item \textbf{Điểm cải tiến:}
+    \begin{itemize}
+        \item \textbf{Giảm phương sai mạnh mẽ:} Bằng cách lấy trung bình dự đoán từ nhiều cây khác nhau, các lỗi riêng lẻ của từng cây sẽ tự triệt tiêu, giúp mô hình trở nên ổn định và chống overfitting cực kỳ hiệu quả.
+    \end{itemize}
+    \item \textbf{Ưu điểm:}
+    \begin{itemize}
+        \item Độ chính xác thường cao hơn nhiều so với một cây đơn.
+        \item Ít cần tinh chỉnh siêu tham số và hoạt động tốt ngay từ đầu.
+    \end{itemize}
+    \item \textbf{Nhược điểm:}
+    \begin{itemize}
+        \item \textbf{Mất tính diễn giải:} Mô hình trở thành "hộp đen" (black-box). Khó để hiểu tại sao hàng trăm cây lại đưa ra một quyết định cụ thể.
+        \item Tốn nhiều tài nguyên tính toán hơn để huấn luyện và dự đoán.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Phân Tích Chuyên Sâu: Bài Toán Cân Bằng Bias-Variance}
+Trong học máy, lỗi của một mô hình có thể được phân rã thành \textbf{Bias (độ chệch)} và \textbf{Variance (phương sai)}.
+\begin{itemize}
+    \item \textbf{Bias} là sai số do các giả định đơn giản hóa của mô hình. Mô hình có bias cao không thể nắm bắt được quy luật phức tạp của dữ liệu.
+    \item \textbf{Variance} là sai số do độ nhạy của mô hình với những thay đổi nhỏ trong dữ liệu huấn luyện. Mô hình có phương sai cao bị overfitting.
+\end{itemize}
+Một cây quyết định đơn lẻ (để sâu) thường có \textbf{bias thấp} (vì nó có thể khớp với mọi chi tiết) nhưng \textbf{phương sai rất cao} (rất không ổn định). Random Forest là một kỹ thuật \textbf{giảm phương sai (variance reduction)} điển hình. Nó chấp nhận một mô hình cơ sở có phương sai cao và dùng phương pháp Bagging để kiểm soát phương sai đó. Tuy nhiên, nó không làm gì để giảm độ chệch (bias) của mô hình. Nếu mô hình cơ sở vốn đã chệch, thì việc lấy trung bình nhiều mô hình chệch cũng sẽ chỉ cho ra một kết quả chệch.
+
+Điều này đặt ra một câu hỏi mới: Liệu có cách nào xây dựng một mô hình mà có thể chủ động \textit{giảm cả bias} không? Câu trả lời nằm ở họ thuật toán Boosting.
+
+\section{Chương 3: AdaBoost - Học Từ Sai Lầm}
+\subsection{Ý Tưởng Cải Tiến}
+Thay vì xây dựng các cây một cách độc lập như Random Forest, họ thuật toán Boosting tiếp cận theo hướng khác: xây dựng cây một cách \textbf{tuần tự}, trong đó \textit{mô hình sau sẽ học cách khắc phục sai lầm của toàn bộ các mô hình trước đó}. AdaBoost (Adaptive Boosting) là một trong những thuật toán tiên phong cho ý tưởng này.
+
+\subsection{Phương Pháp}
+AdaBoost tập trung vào những mẫu dữ liệu bị phân loại sai.
+\begin{enumerate}
+    \item \textbf{Khởi tạo:} Ban đầu, tất cả các mẫu dữ liệu có \textbf{trọng số (sample weight)} bằng nhau (ví dụ: 1/N).
+    \item \textbf{Lặp:}
+    \begin{enumerate}
+        \item Huấn luyện một mô hình yếu (thường là một cây quyết định rất nông, gọi là \textbf{stump}) trên dữ liệu có trọng số.
+        \item Đánh giá mô hình. Tính toán tổng lỗi có trọng số ($\epsilon$) và xác định "tiếng nói" hay tầm quan trọng ($\alpha$) của mô hình này. Mô hình nào ít lỗi hơn sẽ có tiếng nói lớn hơn.
+        \[ \alpha = \frac{1}{2} \ln \left( \frac{1 - \epsilon}{\epsilon} \right) \]
+        \item \textbf{Cập nhật trọng số:} Tăng trọng số của các mẫu bị phân loại sai và giảm trọng số của các mẫu đúng. Điều này buộc mô hình tiếp theo phải tập trung hơn vào các mẫu "khó".
+    \end{enumerate}
+    \item \textbf{Dự đoán cuối cùng:} Là một cuộc bỏ phiếu có trọng số của tất cả các mô hình yếu, với trọng số là "tầm quan trọng" ($\alpha$) của chúng.
+\end{enumerate}
+
+\subsection{Áp dụng vào ví dụ}
+\begin{itemize}
+    \item \textbf{Vòng 1:} Tất cả 8 bệnh nhân có trọng số 1/8. Giả sử stump đầu tiên chia theo \texttt{MaxHeartRate <= 156} và phân loại sai bệnh nhân số 8 (dự đoán là 0 trong khi thực tế là 1).
+    \item \textbf{Vòng 2:} Trọng số của bệnh nhân số 8 sẽ được tăng lên đáng kể, trong khi trọng số của 7 người kia giảm xuống. Stump tiếp theo sẽ phải nỗ lực nhiều hơn để phân loại đúng cho bệnh nhân số 8, có thể bằng cách tìm ra một quy luật khác, ví dụ như \texttt{Age > 67?}.
+\end{itemize}
+
+\subsection{Ưu và Nhược Điểm}
+\begin{itemize}
+    \item \textbf{Điểm cải tiến:} Đây là một cách tiếp cận hoàn toàn khác, tập trung vào việc \textbf{giảm độ chệch (bias)} bằng cách tuần tự sửa lỗi. Nó biến một tập hợp các mô hình yếu thành một mô hình mạnh duy nhất.
+    \item \textbf{Ưu điểm:}
+    \begin{itemize}
+        \item Thường cho độ chính xác cao và dễ triển khai.
+        \item Linh hoạt với nhiều loại mô hình yếu khác nhau.
+    \end{itemize}
+    \item \textbf{Nhược điểm:}
+    \begin{itemize}
+        \item \textbf{Nhạy cảm với nhiễu và outliers:} Nếu có một mẫu bị gán nhãn sai, AdaBoost sẽ cố gắng "vét cạn" để học cho đúng mẫu đó, có thể làm hỏng mô hình tổng thể.
+        \item Huấn luyện tuần tự nên không thể song song hóa, làm chậm quá trình huấn luyện.
+    \end{itemize}
+\end{itemize}
+
+\section{Chương 4: Gradient Boosting - Tổng Quát Hóa Ý Tưởng Sửa Lỗi}
+
+\subsection{Ý Tưởng Cải Tiến}
+AdaBoost sửa lỗi bằng cách thay đổi trọng số dữ liệu. Gradient Boosting (GB) đưa ý tưởng này lên một tầm cao mới bằng cách tiếp cận nó như một bài toán tối ưu hóa: thay vì tập trung vào các mẫu bị phân loại sai, GB tập trung trực tiếp vào \textbf{sai số (error)} của mô hình.
+
+\subsection{Phương Pháp}
+Ý tưởng cốt lõi là mỗi cây mới sẽ được huấn luyện để dự đoán \textbf{phần dư (residual)} – tức là sự khác biệt giữa giá trị thực và giá trị dự đoán của toàn bộ các cây trước đó. Sai số này được gọi là \textbf{phần dư giả (pseudo-residual)}.
+
+\begin{enumerate}
+    \item \textbf{Khởi tạo:} Bắt đầu với một dự đoán ban đầu đơn giản ($F_0$), ví dụ: giá trị trung bình của nhãn trong bài toán hồi quy, hoặc log-odds trong bài toán phân loại.
+    \item \textbf{Lặp (từ m = 1 đến M):}
+    \begin{enumerate}
+        \item Tính toán phần dư giả cho mỗi mẫu ($r_{im}$): Phần dư này chính là \textbf{gradient âm của hàm mất mát} đối với dự đoán của vòng trước.
+        \[ r_{im} = - \left[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \right]_{F(x)=F_{m-1}(x)} \]
+        \item Xây dựng một cây quyết định mới ($f_m$) để học cách dự đoán các phần dư này, thay vì dự đoán nhãn gốc.
+        \item Cập nhật dự đoán tổng thể: Cộng dự đoán của cây mới này vào dự đoán tổng thể của vòng trước, nhưng có điều chỉnh bởi một \textbf{hệ số học (learning rate, $\eta$)}.
+        \[ F_m(x) = F_{m-1}(x) + \eta \cdot f_m(x) \]
+    \end{enumerate}
+\end{enumerate}
+Learning rate ($\eta$) đóng vai trò điều chỉnh, buộc mô hình phải học một cách từ từ và thận trọng, giúp chống overfitting hiệu quả. Quá trình này lặp lại, với mỗi cây mới sẽ cố gắng sửa những sai số còn lại của toàn bộ chuỗi cây trước đó.
+
+\subsection{Ưu và Nhược Điểm}
+\begin{itemize}
+    \item \textbf{Điểm cải tiến:}
+    \begin{itemize}
+        \item \textbf{Tổng quát hóa:} Bằng cách tối ưu hóa trực tiếp một hàm mất mát bất kỳ, GB có thể áp dụng cho vô số bài toán (hồi quy, phân loại, xếp hạng) với các thước đo lỗi khác nhau.
+    \end{itemize}
+    \item \textbf{Ưu điểm:}
+    \begin{itemize}
+        \item Thường cho độ chính xác rất cao, là một trong những thuật toán "sẵn dùng" tốt nhất.
+    \end{itemize}
+    \item \textbf{Nhược điểm:}
+    \begin{itemize}
+        \item Tinh chỉnh siêu tham số (số cây, độ sâu, learning rate) có thể phức tạp và tốn thời gian.
+        \item Tốc độ huấn luyện có thể chậm do tính tuần tự.
+    \end{itemize}
+\end{itemize}
+
+\section{Chương 5: XGBoost - Đỉnh Cao Của Tối Ưu Hóa}
+
+\subsection{Ý Tưởng Cải Tiến}
+XGBoost (eXtreme Gradient Boosting) không phải là một thuật toán hoàn toàn mới, mà là một phiên bản \textbf{tối ưu hóa đến cực đoan} của Gradient Boosting, cải tiến cả về công thức toán học và hiệu năng hệ thống.
+
+\subsection{Phương Pháp và Phân Tích Chuyên Sâu}
+XGBoost kế thừa ý tưởng học trên phần dư của GB nhưng tinh vi hơn rất nhiều.
+\begin{itemize}
+    \item \textbf{Xấp xỉ Taylor Bậc Hai:} Thay vì chỉ dùng Gradient (đạo hàm bậc nhất) như GB truyền thống, XGBoost sử dụng cả \textbf{Gradient ($g_i$)} và \textbf{Hessian ($h_i$, đạo hàm bậc hai)} trong hàm mục tiêu.
+    \begin{itemize}
+        \item \textit{Trực quan:} Gradient cho biết \textit{hướng dốc} của hàm lỗi, còn Hessian cho biết \textit{độ cong}. Việc biết cả độ cong giúp XGBoost tìm đến điểm lỗi tối thiểu một cách nhanh và chính xác hơn, giống như một hệ thống định vị thông minh thay vì chỉ đi theo la bàn.
+    \end{itemize}
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/xgboost_gradient_hessian.png}
+    \caption{Sử dụng cả Gradient và Hessian trong XGBoost.}
+    \label{fig:xgboost_gradient_hessian}
+\end{figure}
+\begin{itemize}
+    \item \textbf{Hàm Mục Tiêu Có Điều Chuẩn (Regularized Objective Function):} Đây là cải tiến quan trọng nhất, giúp XGBoost chống overfitting một cách tự nhiên. Mục tiêu của XGBoost không chỉ là giảm thiểu hàm mất mát, mà là giảm thiểu:
+    \[ Obj^{(t)} = \sum_{i=1}^{n} [g_i f_t(x_i) + \frac{1}{2} h_i f_t^2(x_i)] + \Omega(f_t) \]
+    Trong đó, $\Omega(f_t) = \gamma T + \frac{1}{2} \lambda \sum_{j=1}^{T} w_j^2$ là thành phần "phạt" cho độ phức tạp.
+    \begin{itemize}
+        \item $\gamma$ (gamma): Phạt cho việc thêm một lá mới, hoạt động như một ngưỡng cắt tỉa. Một nhánh chỉ được tách nếu lợi ích giảm lỗi lớn hơn chi phí $\gamma$.
+        \item $\lambda$ (lambda): Phạt điều chuẩn L2 lên trọng số của các nút lá ($w_j$). Nó làm các giá trị dự đoán của mỗi cây trở nên "dè dặt" hơn, tránh việc quá phụ thuộc vào một cây nào.
+    \end{itemize}
+\end{itemize}
+\begin{itemize}
+    \item \textbf{Xử lý Dữ liệu Thiếu (Sparsity-aware):} XGBoost không yêu cầu tiền xử lý giá trị thiếu. Thay vào đó, nó tự \textit{học} hướng đi mặc định (trái hay phải) cho các giá trị thiếu tại mỗi nút để tối đa hóa lợi ích.
+    \item \textbf{Tối ưu Hệ thống:} Tận dụng triệt để phần cứng thông qua các kỹ thuật như song song hóa quá trình tìm điểm chia, sắp xếp dữ liệu theo khối để tối ưu cache, và tính toán ngoài bộ nhớ (out-of-core) cho các tập dữ liệu khổng lồ.
+\end{itemize}
+
+\subsection{Ưu và Nhược Điểm}
+\begin{itemize}
+    \item \textbf{Điểm cải tiến:} Là một gói hoàn chỉnh kết hợp độ chính xác thuật toán (Taylor bậc hai, điều chuẩn) và tốc độ hệ thống (song song hóa, tối ưu cache).
+    \item \textbf{Ưu điểm:}
+    \begin{itemize}
+        \item \textbf{Hiệu suất đỉnh cao:} Thường xuyên là thuật toán chiến thắng trong các cuộc thi khoa học dữ liệu trên Kaggle.
+        \item \textbf{Tốc độ và khả năng mở rộng:} Nhanh hơn đáng kể so với GB truyền thống.
+        \item \textbf{Tính năng tích hợp:} Tự xử lý giá trị thiếu, điều chuẩn tích hợp sẵn.
+    \end{itemize}
+    \item \textbf{Nhược điểm:}
+    \begin{itemize}
+        \item Số lượng siêu tham số cần tinh chỉnh khá lớn, đòi hỏi người dùng có kiến thức sâu để khai thác tối đa hiệu năng.
+    \end{itemize}
+\end{itemize}
+
+\section{Chương 6: Vượt Ra Ngoài XGBoost - Xu Hướng Hiện Tại}
+Sự tiến hóa không dừng lại ở XGBoost. Dựa trên những nguyên tắc của nó, các thư viện mới đã ra đời với những cải tiến riêng:
+\begin{itemize}
+    \item \textbf{LightGBM (Light Gradient Boosting Machine):} Phát triển bởi Microsoft, thường nhanh hơn XGBoost. Thay vì phát triển cây theo từng tầng (level-wise), LightGBM phát triển theo từng lá (leaf-wise), giúp hội tụ nhanh hơn. Nó cũng sử dụng các kỹ thuật lấy mẫu thông minh (Gradient-based One-Side Sampling - GOSS) để tập trung vào các mẫu có gradient lớn, giúp tăng tốc độ mà không ảnh hưởng nhiều đến độ chính xác.
+    \item \textbf{CatBoost (Categorical Boosting):} Phát triển bởi Yandex, cực kỳ mạnh mẽ trong việc xử lý \textbf{đặc trưng dạng chuỗi (categorical features)} một cách tự động và hiệu quả. Nó sử dụng một phương pháp hoán vị thông minh (ordered boosting) để mã hóa các đặc trưng này mà không gây ra hiện tượng rò rỉ mục tiêu (target leakage), một vấn đề phổ biến mà các thuật toán khác thường gặp phải.
+\end{itemize}
+
+\section{Kết Luận}
+Hành trình từ một Cây Quyết Định đơn giản đến các hệ thống Boosting phức tạp như XGBoost là một minh chứng tuyệt vời cho sự phát triển của ngành học máy. Chúng ta đã đi từ một mô hình dễ diễn giải nhưng yếu và không ổn định, đến một "khu rừng" vững chắc có khả năng giảm phương sai (Random Forest), rồi đến một chuỗi các mô hình liên tục sửa sai để giảm độ chệch (Boosting). Cuối cùng, XGBoost và các hậu duệ của nó đã kết hợp những gì tốt nhất của các ý tưởng này và tối ưu chúng đến cực hạn, tạo ra những công cụ mạnh mẽ, linh hoạt và hiệu quả bậc nhất cho các bài toán trên dữ liệu dạng bảng ngày nay.

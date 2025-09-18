@@ -1,0 +1,35 @@
+\documentclass[12pt, a4paper]{article}
+
+% Thiết lập font chữ và ngôn ngữ tiếng Việt
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+\setmainfont{Times New Roman} % Hoặc font bạn ưa thích
+
+% Nhập các gói thiết lập từ file setup.tex
+\input{setup}
+
+\begin{document}
+
+\title{Hành Trình Của Các Thuật Toán Cây: Từ Nhánh Cây Đơn Độc Đến Khu Rừng Bất Bại}
+\author{Vũ Thái Sơn} 
+\date{\today}
+
+\maketitle
+
+\begin{center}
+\large "Từ một cây quyết định đơn lẻ đến sức mạnh của cả khu rừng"
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+% Nhập nội dung chính của bài blog từ file blog.tex
+\input{blog}
+
+% Tạo danh mục tài liệu tham khảo từ file references.bib
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
